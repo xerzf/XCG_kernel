@@ -4807,7 +4807,11 @@ void sched_cgroup_fork(struct task_struct *p, struct kernel_clone_args *kargs)
 	 * We're setting the CPU for the first time, we don't migrate,
 	 * so use __set_task_cpu().
 	 */
-	__set_task_cpu(p, smp_processor_id());
+	int cpu = smp_processor_id();
+	if (IS_ERR_OR_NULL(p->sched_task_group)) { // TODO: create a taskgroup and manage its ref
+		// p->sched_task_group = 
+	}	
+	__set_task_cpu(p, cpu);
 	if (p->sched_class->task_fork)
 		p->sched_class->task_fork(p);
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
@@ -10482,6 +10486,8 @@ static inline struct task_group *css_tg(struct cgroup_subsys_state *css)
 	return css ? container_of(css, struct task_group, css) : NULL;
 }
 
+
+
 static struct cgroup_subsys_state *
 cpu_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 {
@@ -11419,6 +11425,10 @@ static struct cftype cpu_files[] = {
 	{ }	/* terminate */
 };
 
+static int cpu_async(struct task_struct *task) {
+	return 0;
+}
+
 struct cgroup_subsys cpu_cgrp_subsys = {
 	.css_alloc	= cpu_cgroup_css_alloc,
 	.css_online	= cpu_cgroup_css_online,
@@ -11426,6 +11436,7 @@ struct cgroup_subsys cpu_cgrp_subsys = {
 	.css_free	= cpu_cgroup_css_free,
 	.css_extra_stat_show = cpu_extra_stat_show,
 	.css_local_stat_show = cpu_local_stat_show,
+	.async_fork = cpu_async,
 #ifdef CONFIG_RT_GROUP_SCHED
 	.can_attach	= cpu_cgroup_can_attach,
 #endif

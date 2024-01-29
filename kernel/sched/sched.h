@@ -1991,7 +1991,7 @@ static inline struct task_group *task_group(struct task_struct *p)
 static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 {
 #if defined(CONFIG_FAIR_GROUP_SCHED) || defined(CONFIG_RT_GROUP_SCHED)
-	struct task_group *tg = task_group(p);
+	struct task_group *tg = task_group(p); 
 #endif
 
 #ifdef CONFIG_FAIR_GROUP_SCHED

@@ -206,6 +206,7 @@ static u16 have_fork_callback __read_mostly;
 static u16 have_exit_callback __read_mostly;
 static u16 have_release_callback __read_mostly;
 static u16 have_canfork_callback __read_mostly;
+static u16 have_async_callback __read_mostly;
 
 static bool have_favordynmods __ro_after_init = IS_ENABLED(CONFIG_CGROUP_FAVOR_DYNMODS);
 
@@ -1237,6 +1238,8 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 	hash_add(css_set_table, &cset->hlist, key);
 
 	for_each_subsys(ss, ssid) {
+		if(have_async_callback & 1 << ssid) 
+			continue;
 		struct cgroup_subsys_state *css = cset->subsys[ssid];
 
 		list_add_tail(&cset->e_cset_node[ssid],
@@ -1685,6 +1688,9 @@ static void css_clear_dir(struct cgroup_subsys_state *css)
 	struct cftype *cfts;
 
 	if (!(css->flags & CSS_VISIBLE))
+		return;
+	
+	if (cgrp->aflags) 
 		return;
 
 	css->flags &= ~CSS_VISIBLE;
@@ -3186,35 +3192,66 @@ static bool css_visible(struct cgroup_subsys_state *css)
  * been processed already aren't cleaned up.  The caller is responsible for
  * cleaning up with cgroup_apply_control_disable().
  */
-static int cgroup_apply_control_enable(struct cgroup *cgrp)
+static int cgroup_apply_control_enable(struct cgroup *cgrp, bool async)
 {
 	struct cgroup *dsct;
 	struct cgroup_subsys_state *d_css;
 	struct cgroup_subsys *ss;
 	int ssid, ret;
 
-	cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp) {
-		for_each_subsys(ss, ssid) {
-			struct cgroup_subsys_state *css = cgroup_css(dsct, ss);
+	if (async) {
+		cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp) {
+			for_each_subsys(ss, ssid) {
+				struct cgroup_subsys_state *css = cgroup_css(dsct, ss);
 
-			if (!(cgroup_ss_mask(dsct) & (1 << ss->id)))
-				continue;
+				if (!(cgroup_ss_mask(dsct) & (1 << ss->id)))
+					continue;
 
-			if (!css) {
-				css = css_create(dsct, ss);
-				if (IS_ERR(css))
-					return PTR_ERR(css);
+				if (have_async_callback & (1 << ss->id)) { // 如果是异步来完成的
+					continue;
+				}
+
+				if (!css) {
+					css = css_create(dsct, ss);
+					if (IS_ERR(css))
+						return PTR_ERR(css);
+				}
+
+				WARN_ON_ONCE(percpu_ref_is_dying(&css->refcnt));
+
+				if (css_visible(css)) {
+					ret = css_populate_dir(css);
+					if (ret)
+						return ret;
+				}
 			}
+		}
+	} else {
+		cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp) {
+			for_each_subsys(ss, ssid) {
+				struct cgroup_subsys_state *css = cgroup_css(dsct, ss);
 
-			WARN_ON_ONCE(percpu_ref_is_dying(&css->refcnt));
+				if (!(cgroup_ss_mask(dsct) & (1 << ss->id)))
+					continue;
 
-			if (css_visible(css)) {
-				ret = css_populate_dir(css);
-				if (ret)
-					return ret;
+				if (!css) {
+					css = css_create(dsct, ss);
+					if (IS_ERR(css))
+						return PTR_ERR(css);
+				}
+
+				WARN_ON_ONCE(percpu_ref_is_dying(&css->refcnt));
+
+				if (css_visible(css)) {
+					ret = css_populate_dir(css);
+					if (ret)
+						return ret;
+				}
 			}
 		}
 	}
+
+	
 
 	return 0;
 }
@@ -3283,7 +3320,7 @@ static int cgroup_apply_control(struct cgroup *cgrp)
 
 	cgroup_propagate_control(cgrp);
 
-	ret = cgroup_apply_control_enable(cgrp);
+	ret = cgroup_apply_control_enable(cgrp, false);
 	if (ret)
 		return ret;
 
@@ -5731,8 +5768,7 @@ fail:
 	return ret;
 }
 
-int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
-{
+static int cgroup_mkdir_sync(struct kernfs_node *parent_kn, const char *name, umode_t mode) {
 	struct cgroup *parent, *cgrp;
 	int ret;
 
@@ -5769,7 +5805,7 @@ int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
 	if (ret)
 		goto out_destroy;
 
-	ret = cgroup_apply_control_enable(cgrp);
+	ret = cgroup_apply_control_enable(cgrp, false);
 	if (ret)
 		goto out_destroy;
 
@@ -5786,6 +5822,70 @@ out_destroy:
 out_unlock:
 	cgroup_kn_unlock(parent_kn);
 	return ret;
+}
+
+static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, umode_t mode) {
+	struct cgroup *parent, *cgrp;
+	int ret;
+
+	/* do not accept '\n' to prevent making /proc/<pid>/cgroup unparsable */
+	if (strchr(name, '\n'))
+		return -EINVAL;
+
+	parent = cgroup_kn_lock_live(parent_kn, false);
+	if (!parent)
+		return -ENODEV;
+
+	if (!cgroup_check_hierarchy_limits(parent)) {
+		ret = -EAGAIN;
+		goto out_unlock;
+	}
+
+	cgrp = cgroup_create(parent, name, mode);
+	if (IS_ERR(cgrp)) {
+		ret = PTR_ERR(cgrp);
+		goto out_unlock;
+	}
+
+	/*
+	 * This extra ref will be put in cgroup_free_fn() and guarantees
+	 * that @cgrp->kn is always accessible.
+	 */
+	kernfs_get(cgrp->kn);
+
+	ret = cgroup_kn_set_ugid(cgrp->kn);
+	if (ret)
+		goto out_destroy;
+
+	cgrp->aflags = 1;
+	ret = css_populate_dir(&cgrp->self);
+	if (ret)
+		goto out_destroy;
+
+	ret = cgroup_apply_control_enable(cgrp, true);
+	if (ret)
+		goto out_destroy;
+
+	TRACE_CGROUP_PATH(mkdir, cgrp);
+
+	/* let's create and online css's */
+	kernfs_activate(cgrp->kn);
+
+	ret = 0;
+	goto out_unlock;
+
+out_destroy:
+	cgroup_destroy_locked(cgrp);
+out_unlock:
+	cgroup_kn_unlock(parent_kn);
+	return ret;
+}
+
+int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
+{
+	if (strncmp(name, "bb-ctr", 6) == 0) 
+		return cgroup_mkdir_async(parent_kn, name, mode);
+	return cgroup_mkdir_sync(parent_kn, name, mode);
 }
 
 /*
@@ -5911,7 +6011,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 * ->self.children as dead children linger on it while being
 	 * drained; otherwise, "rmdir parent/child parent" may fail.
 	 */
-	if (css_has_online_children(&cgrp->self))
+	if (cgrp->aflags == 0 && css_has_online_children(&cgrp->self))
 		return -EBUSY;
 
 	/*
@@ -5928,6 +6028,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	spin_unlock_irq(&css_set_lock);
 
 	/* initiate massacre of all css's */
+	// if (cgrp->aflags == 0)
 	for_each_css(css, ssid, cgrp)
 		kill_css(css);
 
@@ -6027,6 +6128,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 	have_exit_callback |= (bool)ss->exit << ss->id;
 	have_release_callback |= (bool)ss->release << ss->id;
 	have_canfork_callback |= (bool)ss->can_fork << ss->id;
+	have_async_callback |= (bool)ss->async_fork << ss->id;
 
 	/* At system boot, before all subsystems have been
 	 * registered, no tasks have been forked, so we don't

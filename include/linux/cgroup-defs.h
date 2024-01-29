@@ -400,6 +400,7 @@ struct cgroup {
 
 	unsigned long flags;		/* "unsigned long" so bitops work */
 
+	unsigned long aflags;
 	/*
 	 * The depth this cgroup is at.  The root is at depth zero and each
 	 * step down the hierarchy increments the level.  This along with
@@ -689,6 +690,7 @@ struct cgroup_subsys {
 	void (*post_attach)(void);
 	int (*can_fork)(struct task_struct *task,
 			struct css_set *cset);
+	int (*async_fork)(struct task_struct *task);
 	void (*cancel_fork)(struct task_struct *task, struct css_set *cset);
 	void (*fork)(struct task_struct *task);
 	void (*exit)(struct task_struct *task);
