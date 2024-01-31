@@ -690,7 +690,7 @@ struct cgroup_subsys {
 	void (*post_attach)(void);
 	int (*can_fork)(struct task_struct *task,
 			struct css_set *cset);
-	int (*async_fork)(struct task_struct *task);
+	struct cgroup_subsys_state *(*css_async_alloc)(struct cgroup_subsys_state *parent_css);
 	void (*cancel_fork)(struct task_struct *task, struct css_set *cset);
 	void (*fork)(struct task_struct *task);
 	void (*exit)(struct task_struct *task);

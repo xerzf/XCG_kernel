@@ -351,14 +351,14 @@ struct cfs_bandwidth {
 /* Task group related information */
 struct task_group {
 	struct cgroup_subsys_state css;
-
+	
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* schedulable entities of this group on each CPU */
 	struct sched_entity	**se;
 	/* runqueue "owned" by this group on each CPU */
 	struct cfs_rq		**cfs_rq;
 	unsigned long		shares;
-
+	unsigned long 		async;
 	/* A positive value indicates that this is a SCHED_IDLE group. */
 	int			idle;
 
@@ -438,6 +438,8 @@ extern int tg_nop(struct task_group *tg, void *data);
 
 extern void free_fair_sched_group(struct task_group *tg);
 extern int alloc_fair_sched_group(struct task_group *tg, struct task_group *parent);
+extern int async_alloc_fair_sched_group(struct task_group *tg, struct task_group *parent);
+extern int async_alloc_fair_rq_se(struct task_group *tg, struct task_group *parent, int cpu);
 extern void online_fair_sched_group(struct task_group *tg);
 extern void unregister_fair_sched_group(struct task_group *tg);
 extern void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,

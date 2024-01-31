@@ -4808,8 +4808,10 @@ void sched_cgroup_fork(struct task_struct *p, struct kernel_clone_args *kargs)
 	 * so use __set_task_cpu().
 	 */
 	int cpu = smp_processor_id();
-	if (IS_ERR_OR_NULL(p->sched_task_group)) { // TODO: create a taskgroup and manage its ref
-		// p->sched_task_group = 
+	if (IS_ERR_OR_NULL(p->sched_task_group->cfs_rq[cpu])) { // TODO: create a taskgroup and manage its ref
+		printk("alloc async_alloc_rq_se on %d.\n", cpu);
+		if (!async_alloc_fair_rq_se(p->sched_task_group, p->sched_task_group->parent, cpu)) 
+			printk("async_alloc_rq_se success.\n");
 	}	
 	__set_task_cpu(p, cpu);
 	if (p->sched_class->task_fork)
@@ -10349,6 +10351,30 @@ err:
 	return ERR_PTR(-ENOMEM);
 }
 
+/* allocate runqueue etc for a new task group */
+struct task_group *sched_async_create_group(struct task_group *parent)
+{
+	struct task_group *tg;
+
+	tg = kmem_cache_alloc(task_group_cache, GFP_KERNEL | __GFP_ZERO);
+	if (!tg)
+		return ERR_PTR(-ENOMEM);
+	// tg->parent = parent;
+	if (!async_alloc_fair_sched_group(tg, parent))
+		goto err;
+
+	if (!alloc_rt_sched_group(tg, parent))
+		goto err;
+
+	alloc_uclamp_sched_group(tg, parent);
+
+	return tg;
+
+err:
+	sched_free_group(tg);
+	return ERR_PTR(-ENOMEM);
+}
+
 void sched_online_group(struct task_group *tg, struct task_group *parent)
 {
 	unsigned long flags;
@@ -11425,8 +11451,22 @@ static struct cftype cpu_files[] = {
 	{ }	/* terminate */
 };
 
-static int cpu_async(struct task_struct *task) {
-	return 0;
+static struct cgroup_subsys_state *
+cpu_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
+{
+	struct task_group *parent = css_tg(parent_css);
+	struct task_group *tg;
+
+	if (!parent) {
+		/* This is early initialization for the top cgroup */
+		return &root_task_group.css;
+	}
+
+	tg = sched_async_create_group(parent);
+	if (IS_ERR(tg))
+		return ERR_PTR(-ENOMEM);
+	tg->async = 1;
+	return &tg->css;
 }
 
 struct cgroup_subsys cpu_cgrp_subsys = {
@@ -11436,7 +11476,7 @@ struct cgroup_subsys cpu_cgrp_subsys = {
 	.css_free	= cpu_cgroup_css_free,
 	.css_extra_stat_show = cpu_extra_stat_show,
 	.css_local_stat_show = cpu_local_stat_show,
-	.async_fork = cpu_async,
+	.css_async_alloc = cpu_cgroup_css_async_alloc,
 #ifdef CONFIG_RT_GROUP_SCHED
 	.can_attach	= cpu_cgroup_can_attach,
 #endif
