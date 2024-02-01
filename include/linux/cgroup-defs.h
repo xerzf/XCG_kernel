@@ -515,6 +515,12 @@ struct cgroup {
 	/* used to schedule release agent */
 	struct work_struct release_agent_work;
 
+	/* used to wait for offlining of csses */
+	wait_queue_head_t alloc_waitq;
+
+	/* used to schedule alloc agent */
+	struct work_struct alloc_agent_work;
+
 	/* used to track pressure stalls */
 	struct psi_group *psi;
 
@@ -526,6 +532,7 @@ struct cgroup {
 
 	/* Used to store internal freezer state */
 	struct cgroup_freezer_state freezer;
+
 
 #ifdef CONFIG_BPF_SYSCALL
 	struct bpf_local_storage __rcu  *bpf_cgrp_storage;

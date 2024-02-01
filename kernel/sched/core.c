@@ -3322,6 +3322,15 @@ void relax_compatible_cpus_allowed_ptr(struct task_struct *p)
 	WARN_ON_ONCE(ret);
 }
 
+static int async_alloc_rq_se(struct task_struct *p, int cpu){
+	if (IS_ERR_OR_NULL(p->sched_task_group->cfs_rq[cpu])) { // TODO: create a taskgroup and manage its ref
+		printk("alloc async_alloc_rq_se on %d.\n", cpu);
+		if (!async_alloc_fair_rq_se(p->sched_task_group, p->sched_task_group->parent, cpu)) 
+			printk("async_alloc_rq_se success.\n");
+	}	
+	return 0;
+}
+
 void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 {
 #ifdef CONFIG_SCHED_DEBUG
@@ -3374,7 +3383,7 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 		sched_mm_cid_migrate_from(p);
 		perf_event_task_migrate(p);
 	}
-
+	async_alloc_rq_se(p, new_cpu);
 	__set_task_cpu(p, new_cpu);
 }
 
@@ -4784,14 +4793,7 @@ int sched_fork(unsigned long clone_flags, struct task_struct *p)
 	return 0;
 }
 
-static int async_alloc_rq_se(struct task_struct *p, int cpu){
-	if (IS_ERR_OR_NULL(p->sched_task_group->cfs_rq[cpu])) { // TODO: create a taskgroup and manage its ref
-		printk("alloc async_alloc_rq_se on %d.\n", cpu);
-		if (!async_alloc_fair_rq_se(p->sched_task_group, p->sched_task_group->parent, cpu)) 
-			printk("async_alloc_rq_se success.\n");
-	}	
-	return 0;
-}
+
 
 void sched_cgroup_fork(struct task_struct *p, struct kernel_clone_args *kargs)
 {
@@ -9269,7 +9271,7 @@ void __init init_idle(struct task_struct *idle, int cpu)
 	 * Silence PROVE_RCU
 	 */
 	rcu_read_lock();
-	// async_alloc_rq_se(idle, cpu);
+	async_alloc_rq_se(idle, cpu);
 	__set_task_cpu(idle, cpu);
 	rcu_read_unlock();
 
