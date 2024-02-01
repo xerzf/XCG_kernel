@@ -4784,6 +4784,15 @@ int sched_fork(unsigned long clone_flags, struct task_struct *p)
 	return 0;
 }
 
+static int async_alloc_rq_se(struct task_struct *p, int cpu){
+	if (IS_ERR_OR_NULL(p->sched_task_group->cfs_rq[cpu])) { // TODO: create a taskgroup and manage its ref
+		printk("alloc async_alloc_rq_se on %d.\n", cpu);
+		if (!async_alloc_fair_rq_se(p->sched_task_group, p->sched_task_group->parent, cpu)) 
+			printk("async_alloc_rq_se success.\n");
+	}	
+	return 0;
+}
+
 void sched_cgroup_fork(struct task_struct *p, struct kernel_clone_args *kargs)
 {
 	unsigned long flags;
@@ -4808,11 +4817,7 @@ void sched_cgroup_fork(struct task_struct *p, struct kernel_clone_args *kargs)
 	 * so use __set_task_cpu().
 	 */
 	int cpu = smp_processor_id();
-	if (IS_ERR_OR_NULL(p->sched_task_group->cfs_rq[cpu])) { // TODO: create a taskgroup and manage its ref
-		printk("alloc async_alloc_rq_se on %d.\n", cpu);
-		if (!async_alloc_fair_rq_se(p->sched_task_group, p->sched_task_group->parent, cpu)) 
-			printk("async_alloc_rq_se success.\n");
-	}	
+	async_alloc_rq_se(p, cpu);
 	__set_task_cpu(p, cpu);
 	if (p->sched_class->task_fork)
 		p->sched_class->task_fork(p);
@@ -4865,7 +4870,9 @@ void wake_up_new_task(struct task_struct *p)
 	 */
 	p->recent_used_cpu = task_cpu(p);
 	rseq_migrate(p);
-	__set_task_cpu(p, select_task_rq(p, task_cpu(p), WF_FORK));
+	int cpu = select_task_rq(p, task_cpu(p), WF_FORK);
+	async_alloc_rq_se(p, cpu);
+	__set_task_cpu(p, cpu);
 #endif
 	rq = __task_rq_lock(p, &rf);
 	update_rq_clock(rq);
@@ -9262,6 +9269,7 @@ void __init init_idle(struct task_struct *idle, int cpu)
 	 * Silence PROVE_RCU
 	 */
 	rcu_read_lock();
+	// async_alloc_rq_se(idle, cpu);
 	__set_task_cpu(idle, cpu);
 	rcu_read_unlock();
 
