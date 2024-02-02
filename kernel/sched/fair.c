@@ -9081,9 +9081,10 @@ static int detach_tasks(struct lb_env *env)
 
 		detach_task(p, env);
 		if (IS_ERR_OR_NULL(p->sched_task_group->cfs_rq[env->dst_cpu])) {
-			printk("alloc async_alloc_rq_se on %d.\n", env->dst_cpu);
-			if (!async_alloc_fair_rq_se(p->sched_task_group, p->sched_task_group->parent, env->dst_cpu))
-			printk("async_alloc_rq_se success on %d.\n", env->dst_cpu);
+			// printk("alloc async_alloc_rq_se on %d.\n", env->dst_cpu);
+			if (!async_alloc_fair_rq_se(p->sched_task_group, p->sched_task_group->parent, env->dst_cpu)) {
+				// printk("async_alloc_rq_se success on %d.\n", env->dst_cpu);
+			}
 		}
 		list_add(&p->se.group_node, &env->tasks);
 

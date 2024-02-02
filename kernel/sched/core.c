@@ -3324,9 +3324,9 @@ void relax_compatible_cpus_allowed_ptr(struct task_struct *p)
 
 static int async_alloc_rq_se(struct task_struct *p, int cpu){
 	if (IS_ERR_OR_NULL(p->sched_task_group->cfs_rq[cpu])) { // TODO: create a taskgroup and manage its ref
-		printk("alloc async_alloc_rq_se on %d.\n", cpu);
+		// printk("alloc async_alloc_rq_se on %d.\n", cpu);
 		if (!async_alloc_fair_rq_se(p->sched_task_group, p->sched_task_group->parent, cpu)) 
-			printk("async_alloc_rq_se success.\n");
+			// printk("async_alloc_rq_se success.\n");
 	}	
 	return 0;
 }
