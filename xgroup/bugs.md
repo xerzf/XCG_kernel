@@ -1,3 +1,73 @@
 ```
-
+[   50.180882] kernel BUG at mm/slub.c:448!
+[   50.181379] invalid opcode: 0000 [#1] PREEMPT SMP NOPTI
+[   50.181945] CPU: 57 PID: 4102 Comm: 3 Tainted: G        W          6.7.2exp+ #4
+[   50.182759] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.16.2-0-gea1b7a073390-prebuilt.qemu.4
+[   50.183977] RIP: 0010:__kmem_cache_free+0x30c/0x330
+[   50.184630] Code: ff e9 31 ff ff ff 49 8b 47 08 f0 48 83 28 01 0f 85 84 fe ff ff 49 8b 47 08 4c 89 ff 48 8b 40 085
+[   50.186908] RSP: 0018:ff6f78128533fcb0 EFLAGS: 00010246
+[   50.187468] RAX: ff42bce1c5647580 RBX: ff42bce1c5647580 RCX: ff42bce1c5647590
+[   50.188224] RDX: 00000000001aa039 RSI: fff3b27ec0000000 RDI: ff42bce1c0034400
+[   50.189002] RBP: ff6f78128533fcf0 R08: ff42bce1d22bb598 R09: ff42bce1c01f9718
+[   50.189752] R10: ffffffffffffffff R11: 0000000000000040 R12: ff42bce1c0034400
+[   50.190530] R13: fff3b27ec41591c0 R14: ffffffffba9824db R15: 0000000000000000
+[   50.191312] FS:  00007fb55f52e7c0(0000) GS:ff42bd1fff840000(0000) knlGS:0000000000000000
+[   50.192363] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   50.193056] CR2: 00007fb55f7d1733 CR3: 00000001508a0004 CR4: 0000000000771ef0
+[   50.193804] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[   50.194573] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+[   50.195369] PKRU: 55555554
+[   50.195661] Call Trace:
+[   50.195927]  <TASK>
+[   50.196159]  ? show_regs+0x6e/0x80
+[   50.196534]  ? die+0x3c/0xa0
+[   50.196851]  ? do_trap+0xd4/0xf0
+[   50.197201]  ? do_error_trap+0x75/0xa0
+[   50.197605]  ? __kmem_cache_free+0x30c/0x330
+[   50.198062]  ? exc_invalid_op+0x57/0x80
+[   50.198498]  ? __kmem_cache_free+0x30c/0x330
+[   50.198958]  ? asm_exc_invalid_op+0x1f/0x30
+[   50.199403]  ? kfree_const+0x1b/0x30
+[   50.199790]  ? __kmem_cache_free+0x30c/0x330
+[   50.200249]  ? asm_exc_invalid_op+0x1f/0x30
+[   50.200700]  kfree+0x7d/0x120
+[   50.201030]  kfree_const+0x1b/0x30
+[   50.201402]  kernfs_put.part.0+0x58/0x180
+[   50.201837]  __kernfs_remove.part.0+0x113/0x230
+[   50.202342]  kernfs_remove+0x50/0x70
+[   50.202723]  cgroup_destroy_locked+0x115/0x1d0
+[   50.203202]  cgroup_mkdir+0xdf/0x290
+[   50.203587]  kernfs_iop_mkdir+0x5d/0x90
+[   50.203995]  vfs_mkdir+0x19c/0x260
+[   50.204370]  do_mkdirat+0x117/0x160
+[   50.204749]  __x64_sys_mkdirat+0x55/0x80
+[   50.205170]  do_syscall_64+0x60/0xe0
+[   50.205557]  ? irqentry_exit+0x3f/0x50
+[   50.205955]  ? exc_page_fault+0x8e/0x190
+[   50.206398]  entry_SYSCALL_64_after_hwframe+0x6e/0x76
+[   50.207362] RIP: 0033:0x7fb55f71448b
+[   50.208112] Code: 73 01 c3 48 8b 0d a5 59 10 00 f7 d8 64 89 01 48 83 c8 ff c3 66 2e 0f 1f 84 00 00 00 00 00 90 f38
+[   50.210807] RSP: 002b:00007fffb3580e08 EFLAGS: 00000246 ORIG_RAX: 0000000000000102
+[   50.211993] RAX: ffffffffffffffda RBX: 0000555caf3fef8a RCX: 00007fb55f71448b
+[   50.213134] RDX: 00000000000001ed RSI: 0000555caf3fef70 RDI: 00000000ffffff9c
+[   50.214261] RBP: 000000000000001a R08: 00007fffb3581148 R09: 000000007fffffff
+[   50.215381] R10: 0000000000000000 R11: 0000000000000246 R12: 00000000000001ed
+[   50.216492] R13: 00000000ffffff9c R14: 0000555caf3fef70 R15: 0000000000000000
+[   50.217577]  </TASK>
+[   50.218153] Modules linked in: isofs intel_rapl_msr intel_rapl_common intel_uncore_frequency_common nfit binfmt_md
+[   50.226275] ---[ end trace 0000000000000000 ]---
+[   50.227168] RIP: 0010:__kmem_cache_free+0x30c/0x330
+[   50.228083] Code: ff e9 31 ff ff ff 49 8b 47 08 f0 48 83 28 01 0f 85 84 fe ff ff 49 8b 47 08 4c 89 ff 48 8b 40 085
+[   50.231524] RSP: 0018:ff6f78128533fcb0 EFLAGS: 00010246
+[   50.232680] RAX: ff42bce1c5647580 RBX: ff42bce1c5647580 RCX: ff42bce1c5647590
+[   50.234071] RDX: 00000000001aa039 RSI: fff3b27ec0000000 RDI: ff42bce1c0034400
+[   50.235531] RBP: ff6f78128533fcf0 R08: ff42bce1d22bb598 R09: ff42bce1c01f9718
+[   50.236928] R10: ffffffffffffffff R11: 0000000000000040 R12: ff42bce1c0034400
+[   50.238395] R13: fff3b27ec41591c0 R14: ffffffffba9824db R15: 0000000000000000
+[   50.239864] FS:  00007fb55f52e7c0(0000) GS:ff42bd1fff840000(0000) knlGS:0000000000000000
+[   50.241162] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   50.242401] CR2: 00007fb55f7d1733 CR3: 00000001508a0004 CR4: 0000000000771ef0
+[   50.243782] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[   50.244996] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+[   50.246201] PKRU: 55555554
 ```

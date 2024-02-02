@@ -5890,12 +5890,14 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 		return -ENODEV;
 
 	if (!cgroup_check_hierarchy_limits(parent)) {
+		printk("err 1\n");
 		ret = -EAGAIN;
 		goto out_unlock;
 	}
 
 	cgrp = cgroup_create(parent, name, mode);
 	if (IS_ERR(cgrp)) {
+		printk("err 2\n");
 		ret = PTR_ERR(cgrp);
 		goto out_unlock;
 	}
@@ -5907,7 +5909,7 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 	kernfs_get(cgrp->kn);
 
 	ret = cgroup_kn_set_ugid(cgrp->kn);
-	if (ret)
+	if (ret) 
 		goto out_destroy;
 
 	cgrp->aflags = 1;
@@ -5916,8 +5918,11 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 		goto out_destroy;
 
 	ret = cgroup_apply_control_enable(cgrp, true);
-	if (ret)
+	if (ret) {
+		printk("err x\n");
 		goto out_destroy;
+	}
+		
 
 	TRACE_CGROUP_PATH(mkdir, cgrp);
 

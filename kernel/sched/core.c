@@ -3326,7 +3326,7 @@ static int async_alloc_rq_se(struct task_struct *p, int cpu){
 	if (IS_ERR_OR_NULL(p->sched_task_group->cfs_rq[cpu])) { // TODO: create a taskgroup and manage its ref
 		// printk("alloc async_alloc_rq_se on %d.\n", cpu);
 		if (!async_alloc_fair_rq_se(p->sched_task_group, p->sched_task_group->parent, cpu)) {
-			
+
 		}
 			// printk("async_alloc_rq_se success.\n");
 	}	
@@ -11475,8 +11475,11 @@ cpu_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
 	}
 
 	tg = sched_async_create_group(parent);
-	if (IS_ERR(tg))
+	if (IS_ERR(tg)){
+		printk("sched_async_create_group error\n");
 		return ERR_PTR(-ENOMEM);
+	}
+		
 	tg->async = 1;
 	return &tg->css;
 }
