@@ -3216,10 +3216,8 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp, bool async)
 							return PTR_ERR(css);
 					}
 					// WARN_ON_ONCE(percpu_ref_is_dying(&css->refcnt));
-					continue;
-				}
-
-				if (!css) {
+					// continue;
+				} else if (!css) {
 					css = css_create(dsct, ss);
 					if (IS_ERR(css))
 						return PTR_ERR(css);

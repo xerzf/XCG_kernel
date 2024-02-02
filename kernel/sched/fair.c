@@ -12790,9 +12790,9 @@ void free_fair_sched_group(struct task_group *tg)
 	int i;
 
 	for_each_possible_cpu(i) {
-		if (tg->cfs_rq)
+		if (tg->cfs_rq && tg->cfs_rq[i])
 			kfree(tg->cfs_rq[i]);
-		if (tg->se)
+		if (tg->se && tg->se[i])
 			kfree(tg->se[i]);
 	}
 
