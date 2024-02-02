@@ -1692,7 +1692,7 @@ static void css_clear_dir(struct cgroup_subsys_state *css)
 	if (!(css->flags & CSS_VISIBLE))
 		return;
 	
-	if (cgrp->aflags) 
+	if (cgrp->aflags && !(have_async_callback & 1 << css->ss->id))
 		return;
 
 	css->flags &= ~CSS_VISIBLE;
