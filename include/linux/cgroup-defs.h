@@ -200,6 +200,8 @@ struct cgroup_subsys_state {
 	struct work_struct destroy_work;
 	struct rcu_work destroy_rwork;
 
+	struct work_struct async_init_ws;
+
 	/*
 	 * PI: the parent css.	Placed here for cache proximity to following
 	 * fields of the containing structure.
@@ -697,7 +699,7 @@ struct cgroup_subsys {
 	void (*post_attach)(void);
 	int (*can_fork)(struct task_struct *task,
 			struct css_set *cset);
-	struct cgroup_subsys_state *(*css_async_alloc)(struct cgroup_subsys_state *parent_css);
+	struct cgroup_subsys_state *(*css_async_alloc)(struct cgroup_subsys_state *parent_css, struct workqueue_struct *wq);
 	void (*cancel_fork)(struct task_struct *task, struct css_set *cset);
 	void (*fork)(struct task_struct *task);
 	void (*exit)(struct task_struct *task);
@@ -743,6 +745,7 @@ struct cgroup_subsys {
 
 	/* idr for css->id */
 	struct idr css_idr;
+
 
 	/*
 	 * List of cftypes.  Each entry is the first entry of an array

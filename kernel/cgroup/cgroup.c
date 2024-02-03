@@ -126,6 +126,9 @@ DEFINE_PERCPU_RWSEM(cgroup_threadgroup_rwsem);
  */
 static struct workqueue_struct *cgroup_destroy_wq;
 
+static struct workqueue_struct *subsys_init_wq;
+
+
 /* generate an array of cgroup subsystem pointers */
 #define SUBSYS(_x) [_x ## _cgrp_id] = &_x ## _cgrp_subsys,
 struct cgroup_subsys *cgroup_subsys[] = {
@@ -1691,9 +1694,6 @@ static void css_clear_dir(struct cgroup_subsys_state *css)
 
 	if (!(css->flags & CSS_VISIBLE))
 		return;
-	
-	if (cgrp->aflags && !(have_async_callback & 1 << css->ss->id))
-		return;
 
 	css->flags &= ~CSS_VISIBLE;
 
@@ -1709,6 +1709,8 @@ static void css_clear_dir(struct cgroup_subsys_state *css)
 					   cgroup1_base_files, false);
 		}
 	} else {
+		if (!(have_async_callback & 1 << css->ss->id)) 
+			return;
 		list_for_each_entry(cfts, &css->ss->cfts, node)
 			cgroup_addrm_files(css, cgrp, cfts, false);
 	}
@@ -3216,7 +3218,7 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp, bool async)
 							return PTR_ERR(css);
 					}
 					// WARN_ON_ONCE(percpu_ref_is_dying(&css->refcnt));
-					// continue;
+					continue;
 				} else if (!css) {
 					css = css_create(dsct, ss);
 					if (IS_ERR(css))
@@ -3256,8 +3258,6 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp, bool async)
 			}
 		}
 	}
-
-	
 
 	return 0;
 }
@@ -5587,7 +5587,7 @@ static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	css = ss->css_async_alloc(parent_css);
+	css = ss->css_async_alloc(parent_css, subsys_init_wq);
 	if (!css)
 		css = ERR_PTR(-ENOMEM);
 	if (IS_ERR(css))
@@ -5888,14 +5888,12 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 		return -ENODEV;
 
 	if (!cgroup_check_hierarchy_limits(parent)) {
-		printk("err 1\n");
 		ret = -EAGAIN;
 		goto out_unlock;
 	}
 
 	cgrp = cgroup_create(parent, name, mode);
 	if (IS_ERR(cgrp)) {
-		printk("err 2\n");
 		ret = PTR_ERR(cgrp);
 		goto out_unlock;
 	}
@@ -5917,7 +5915,6 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 
 	ret = cgroup_apply_control_enable(cgrp, true);
 	if (ret) {
-		printk("err x\n");
 		goto out_destroy;
 	}
 		
@@ -6349,6 +6346,9 @@ static int __init cgroup_wq_init(void)
 	 */
 	cgroup_destroy_wq = alloc_workqueue("cgroup_destroy", 0, 1);
 	BUG_ON(!cgroup_destroy_wq);
+
+	subsys_init_wq = alloc_workqueue("cpusys_init", WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
+	BUG_ON(!subsys_init_wq);
 	return 0;
 }
 core_initcall(cgroup_wq_init);

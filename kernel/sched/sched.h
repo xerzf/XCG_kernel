@@ -386,6 +386,8 @@ struct task_group {
 	struct list_head	siblings;
 	struct list_head	children;
 
+	struct work_struct init_work;
+
 #ifdef CONFIG_SCHED_AUTOGROUP
 	struct autogroup	*autogroup;
 #endif

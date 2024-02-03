@@ -4812,6 +4812,9 @@ void sched_cgroup_fork(struct task_struct *p, struct kernel_clone_args *kargs)
 		tg = container_of(kargs->cset->subsys[cpu_cgrp_id],
 				  struct task_group, css);
 		tg = autogroup_task_group(p, tg);
+		if (tg->async==1) {
+			flush_work(&tg->css.async_init_ws);
+		}
 		p->sched_task_group = tg;
 	}
 #endif
@@ -9886,11 +9889,12 @@ int in_sched_functions(unsigned long addr)
 struct task_group root_task_group;
 LIST_HEAD(task_groups);
 
+
 /* Cacheline aligned slab cache for task_group */
 static struct kmem_cache *task_group_cache __ro_after_init;
 #endif
 
-void __init sched_init(void)
+void __init sched_init(void) // TODO: init a work queue
 {
 	unsigned long ptr = 0;
 	int i;
@@ -10363,28 +10367,48 @@ err:
 	return ERR_PTR(-ENOMEM);
 }
 
+
+static void sched_async_create_group_work_fn(struct work_struct *work) {
+	
+	struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_ws);
+	struct task_group *tg = container_of(css, struct task_group, css);
+	struct task_group *parent = tg->parent;
+	if (!async_alloc_fair_sched_group(tg, parent))
+		panic("unhandle async_alloc_fair_sched_group fail\n");
+
+	if (!alloc_rt_sched_group(tg, parent))
+		panic("unhandle alloc_rt_sched_group fail\n");
+
+	alloc_uclamp_sched_group(tg, parent);
+}
+
+
 /* allocate runqueue etc for a new task group */
-struct task_group *sched_async_create_group(struct task_group *parent)
+struct task_group *sched_async_create_group(struct task_group *parent, struct workqueue_struct *wq)
 {
 	struct task_group *tg;
 
 	tg = kmem_cache_alloc(task_group_cache, GFP_KERNEL | __GFP_ZERO);
 	if (!tg)
 		return ERR_PTR(-ENOMEM);
-	// tg->parent = parent;
-	if (!async_alloc_fair_sched_group(tg, parent))
-		goto err;
+	tg->async = 1;
+	tg->parent = parent;
+	INIT_WORK(&tg->css.async_init_ws, sched_async_create_group_work_fn);
+	queue_work(wq, &tg->css.async_init_ws);
 
-	if (!alloc_rt_sched_group(tg, parent))
-		goto err;
+	// if (!async_alloc_fair_sched_group(tg, parent))
+	// 	goto err;
 
-	alloc_uclamp_sched_group(tg, parent);
+	// if (!alloc_rt_sched_group(tg, parent))
+	// 	goto err;
+
+	// alloc_uclamp_sched_group(tg, parent);
 
 	return tg;
 
-err:
-	sched_free_group(tg);
-	return ERR_PTR(-ENOMEM);
+// err:
+// 	sched_free_group(tg);
+// 	return ERR_PTR(-ENOMEM);
 }
 
 void sched_online_group(struct task_group *tg, struct task_group *parent)
@@ -11464,7 +11488,7 @@ static struct cftype cpu_files[] = {
 };
 
 static struct cgroup_subsys_state *
-cpu_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
+cpu_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css, struct workqueue_struct *wq)
 {
 	struct task_group *parent = css_tg(parent_css);
 	struct task_group *tg;
@@ -11474,13 +11498,12 @@ cpu_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
 		return &root_task_group.css;
 	}
 
-	tg = sched_async_create_group(parent);
+	tg = sched_async_create_group(parent, wq);
 	if (IS_ERR(tg)){
 		printk("sched_async_create_group error\n");
 		return ERR_PTR(-ENOMEM);
 	}
 		
-	tg->async = 1;
 	return &tg->css;
 }
 
