@@ -10368,7 +10368,7 @@ err:
 }
 
 
-static void sched_async_create_group_work_fn(struct work_struct *work) {
+void sched_async_create_group_work_fn(struct work_struct *work) {
 	
 	struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_ws);
 	struct task_group *tg = container_of(css, struct task_group, css);
