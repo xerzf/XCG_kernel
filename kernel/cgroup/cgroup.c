@@ -6347,7 +6347,7 @@ static int __init cgroup_wq_init(void)
 	cgroup_destroy_wq = alloc_workqueue("cgroup_destroy", 0, 1);
 	BUG_ON(!cgroup_destroy_wq);
 
-	subsys_init_wq = alloc_workqueue("cpusys_init", WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
+	subsys_init_wq = alloc_workqueue("subsys_init", WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
 	BUG_ON(!subsys_init_wq);
 	return 0;
 }
