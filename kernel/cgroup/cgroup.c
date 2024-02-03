@@ -5587,7 +5587,9 @@ static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	css = ss->css_async_alloc(parent_css, subsys_init_wq);
+	css = ss->css_async_alloc(parent_css);
+	INIT_WORK(&css->async_init_ws, css->ss->async_alloc_fn);
+	queue_work(subsys_init_wq, &css->async_init_ws);
 	if (!css)
 		css = ERR_PTR(-ENOMEM);
 	if (IS_ERR(css))

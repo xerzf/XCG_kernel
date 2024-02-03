@@ -10385,7 +10385,7 @@ void sched_async_create_group_work_fn(struct work_struct *work) {
 
 
 /* allocate runqueue etc for a new task group */
-struct task_group *sched_async_create_group(struct task_group *parent, struct workqueue_struct *wq)
+struct task_group *sched_async_create_group(struct task_group *parent)
 {
 	struct task_group *tg;
 
@@ -10394,8 +10394,8 @@ struct task_group *sched_async_create_group(struct task_group *parent, struct wo
 		return ERR_PTR(-ENOMEM);
 	tg->async = 1;
 	tg->parent = parent;
-	INIT_WORK(&tg->css.async_init_ws, sched_async_create_group_work_fn);
-	queue_work(wq, &tg->css.async_init_ws);
+	// INIT_WORK(&tg->css.async_init_ws, sched_async_create_group_work_fn);
+	// queue_work(wq, &tg->css.async_init_ws);
 
 	// if (!async_alloc_fair_sched_group(tg, parent))
 	// 	goto err;
@@ -11489,7 +11489,7 @@ static struct cftype cpu_files[] = {
 };
 
 static struct cgroup_subsys_state *
-cpu_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css, struct workqueue_struct *wq)
+cpu_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct task_group *parent = css_tg(parent_css);
 	struct task_group *tg;
@@ -11499,7 +11499,7 @@ cpu_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css, struct workqu
 		return &root_task_group.css;
 	}
 
-	tg = sched_async_create_group(parent, wq);
+	tg = sched_async_create_group(parent);
 	if (IS_ERR(tg)){
 		printk("sched_async_create_group error\n");
 		return ERR_PTR(-ENOMEM);
@@ -11516,6 +11516,7 @@ struct cgroup_subsys cpu_cgrp_subsys = {
 	.css_extra_stat_show = cpu_extra_stat_show,
 	.css_local_stat_show = cpu_local_stat_show,
 	.css_async_alloc = cpu_cgroup_css_async_alloc,
+	.async_alloc_fn = sched_async_create_group_work_fn,
 #ifdef CONFIG_RT_GROUP_SCHED
 	.can_attach	= cpu_cgroup_can_attach,
 #endif
