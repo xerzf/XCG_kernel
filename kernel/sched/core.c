@@ -4813,7 +4813,7 @@ void sched_cgroup_fork(struct task_struct *p, struct kernel_clone_args *kargs)
 				  struct task_group, css);
 		tg = autogroup_task_group(p, tg);
 		if (tg->async==1) {
-			flush_work(&tg->css.async_init_ws);
+			flush_work(&tg->css.async_init_work);
 		}
 		p->sched_task_group = tg;
 	}
@@ -10369,11 +10369,10 @@ err:
 
 
 void sched_async_create_group_work_fn(struct work_struct *work) {
-	
-	struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_ws);
-	struct task_group *tg = container_of(css, struct task_group, css);
+	struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
+	struct task_group *tg = (struct task_group *)css;
 	struct task_group *parent = tg->parent;
-	printk("access async alloc cpu subsystem\n");
+	// printk("access async alloc cpu subsystem\n");
 	if (!async_alloc_fair_sched_group(tg, parent))
 		panic("unhandle async_alloc_fair_sched_group fail\n");
 

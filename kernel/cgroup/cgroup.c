@@ -5577,6 +5577,12 @@ static void offline_css(struct cgroup_subsys_state *css)
 	wake_up_all(&css->cgroup->offline_waitq);
 }
 
+static void async_alloc_ws_fn(struct work_struct *ws) {
+	struct cgroup_subsys_state *css = container_of(ws, struct cgroup_subsys_state, async_init_work);
+	css->ss->async_alloc_fn(ws);
+	// printk("access async alloc cpu subsystem\n");
+}
+
 static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
 					      struct cgroup_subsys *ss)
 {
@@ -5588,14 +5594,16 @@ static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
 	lockdep_assert_held(&cgroup_mutex);
 
 	css = ss->css_async_alloc(parent_css);
-	INIT_WORK(&css->async_init_ws, css->ss->async_alloc_fn);
-	queue_work(subsys_init_wq, &css->async_init_ws);
 	if (!css)
 		css = ERR_PTR(-ENOMEM);
 	if (IS_ERR(css))
 		return css;
 
+
 	init_and_link_css(css, ss, cgrp);
+
+	INIT_WORK(&css->async_init_work, async_alloc_ws_fn);
+	queue_work(subsys_init_wq, &css->async_init_work);
 
 	err = percpu_ref_init(&css->refcnt, css_release, 0, GFP_KERNEL);
 	if (err)
@@ -5610,9 +5618,11 @@ static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
 	list_add_tail_rcu(&css->sibling, &parent_css->children);
 	cgroup_idr_replace(&ss->css_idr, css, css->id);
 
+	
 	err = online_css(css);
 	if (err)
 		goto err_list_del;
+
 
 	return css;
 
@@ -6350,7 +6360,8 @@ static int __init cgroup_wq_init(void)
 	BUG_ON(!cgroup_destroy_wq);
 
 	subsys_init_wq = alloc_workqueue("subsys_init", WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
-	BUG_ON(!subsys_init_wq);
+	if (!subsys_init_wq)
+		return -ENOMEM;
 	return 0;
 }
 core_initcall(cgroup_wq_init);
