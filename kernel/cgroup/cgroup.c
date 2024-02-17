@@ -1709,7 +1709,7 @@ static void css_clear_dir(struct cgroup_subsys_state *css)
 					   cgroup1_base_files, false);
 		}
 	} else {
-		if (!(have_async_callback & 1 << css->ss->id)) 
+		if (cgrp->aflags == 1 || !(have_async_callback & 1 << css->ss->id)) 
 			return;
 		list_for_each_entry(cfts, &css->ss->cfts, node)
 			cgroup_addrm_files(css, cgrp, cfts, false);
