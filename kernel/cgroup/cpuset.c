@@ -92,6 +92,8 @@ static const char * const perr_strings[] = {
 struct cpuset {
 	struct cgroup_subsys_state css;
 
+	int async;
+
 	unsigned long flags;		/* "unsigned long" so bitops work */
 
 	/*
@@ -3919,6 +3921,74 @@ cpuset_css_alloc(struct cgroup_subsys_state *parent_css)
 	return &cs->css;
 }
 
+static struct cgroup_subsys_state *
+cpuset_css_async_alloc(struct cgroup_subsys_state *parent_css)
+{
+	struct cpuset *cs;
+
+	if (!parent_css)
+		return &top_cpuset.css;
+
+	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
+	if (!cs)
+		return ERR_PTR(-ENOMEM);
+
+	if (alloc_cpumasks(cs, NULL)) {
+		kfree(cs);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	__set_bit(CS_SCHED_LOAD_BALANCE, &cs->flags);
+	nodes_clear(cs->mems_allowed);
+	nodes_clear(cs->effective_mems);
+	fmeter_init(&cs->fmeter);
+	cs->relax_domain_level = -1;
+	INIT_LIST_HEAD(&cs->remote_sibling);
+
+	/* Set CS_MEMORY_MIGRATE for default hierarchy */
+	if (cgroup_subsys_on_dfl(cpuset_cgrp_subsys))
+		__set_bit(CS_MEMORY_MIGRATE, &cs->flags);
+
+	cs->async = 1;
+
+	return &cs->css;
+}
+
+static void 
+cpuset_css_async_alloc_work_fn(struct work_struct *work)
+{
+	struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
+	struct cpuset *cs = (struct cpuset *)css;
+
+	if (alloc_cpumasks(cs, NULL)) {
+		kfree(cs);
+		// return ERR_PTR(-ENOMEM);
+		panic("cpuset_css_async_alloc_work_fn alloc_cpumasks failed!!\n");
+	}
+
+	__set_bit(CS_SCHED_LOAD_BALANCE, &cs->flags);
+	nodes_clear(cs->mems_allowed);
+	nodes_clear(cs->effective_mems);
+	fmeter_init(&cs->fmeter);
+	cs->relax_domain_level = -1;
+	INIT_LIST_HEAD(&cs->remote_sibling);
+
+	/* Set CS_MEMORY_MIGRATE for default hierarchy */
+	if (cgroup_subsys_on_dfl(cpuset_cgrp_subsys))
+		__set_bit(CS_MEMORY_MIGRATE, &cs->flags);
+
+	// return &cs->css;
+}
+
+static void 
+cpuset_flush_async_wrok(struct cgroup_subsys_state *css){
+	struct cpuset *cs = (struct cpuset *)css;
+	if (cs->async==1) {
+			flush_work(&cs->css.async_init_work);
+	}
+}
+
+
 static int cpuset_css_online(struct cgroup_subsys_state *css)
 {
 	struct cpuset *cs = css_cs(css);
@@ -4074,6 +4144,10 @@ static int cpuset_can_fork(struct task_struct *task, struct css_set *cset)
 	bool same_cs;
 	int ret;
 
+	// if (cs->async==1) {
+	// 		flush_work(&cs->css.async_init_work);
+	// }
+
 	rcu_read_lock();
 	same_cs = (cs == task_cs(current));
 	rcu_read_unlock();
@@ -4164,6 +4238,9 @@ static void cpuset_fork(struct task_struct *task)
 
 struct cgroup_subsys cpuset_cgrp_subsys = {
 	.css_alloc	= cpuset_css_alloc,
+	.css_async_alloc = cpuset_css_async_alloc, 
+	.async_alloc_fn = cpuset_css_async_alloc_work_fn, 
+	.flush_async_work = cpuset_flush_async_wrok, 
 	.css_online	= cpuset_css_online,
 	.css_offline	= cpuset_css_offline,
 	.css_free	= cpuset_css_free,

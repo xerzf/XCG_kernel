@@ -180,6 +180,8 @@ struct cgroup_subsys_state {
 	 */
 	int id;
 
+	bool files;
+
 	unsigned int flags;
 
 	/*
@@ -701,6 +703,7 @@ struct cgroup_subsys {
 			struct css_set *cset);
 	struct cgroup_subsys_state *(*css_async_alloc)(struct cgroup_subsys_state *parent_css);
 	void (*async_alloc_fn)(struct work_struct *work);
+	void (*flush_async_work)(struct cgroup_subsys_state* css);
 	void (*cancel_fork)(struct task_struct *task, struct css_set *cset);
 	void (*fork)(struct task_struct *task);
 	void (*exit)(struct task_struct *task);

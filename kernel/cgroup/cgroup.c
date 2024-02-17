@@ -1709,7 +1709,7 @@ static void css_clear_dir(struct cgroup_subsys_state *css)
 					   cgroup1_base_files, false);
 		}
 	} else {
-		if (cgrp->aflags == 1 || !(have_async_callback & 1 << css->ss->id)) 
+		if (css->files || !(have_async_callback & 1 << css->ss->id)) 
 			return;
 		list_for_each_entry(cfts, &css->ss->cfts, node)
 			cgroup_addrm_files(css, cgrp, cfts, false);
@@ -3225,14 +3225,13 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp, bool async)
 						return PTR_ERR(css);
 				}
 
-				continue;
-
 				WARN_ON_ONCE(percpu_ref_is_dying(&css->refcnt));
 
 				if (css_visible(css)) {
-					ret = css_populate_dir(css);
-					if (ret)
-						return ret;
+					css->files = true;
+					// ret = css_populate_dir(css);
+					// if (ret)
+					// 	return ret;
 				}
 			}
 		}
@@ -5560,6 +5559,28 @@ static int online_css(struct cgroup_subsys_state *css)
 	return ret;
 }
 
+/* invoke ->css_online() on a new CSS and mark it online if successful */
+static int online_css_free_lock
+(struct cgroup_subsys_state *css)
+{
+	struct cgroup_subsys *ss = css->ss;
+	int ret = 0;
+
+	// lockdep_assert_held(&cgroup_mutex);
+
+	if (ss->css_online)
+		ret = ss->css_online(css);
+	if (!ret) {
+		css->flags |= CSS_ONLINE;
+		rcu_assign_pointer(css->cgroup->subsys[ss->id], css);
+
+		atomic_inc(&css->online_cnt);
+		if (css->parent)
+			atomic_inc(&css->parent->online_cnt);
+	}
+	return ret;
+}
+
 /* if the CSS is online, invoke ->css_offline() on it and mark it offline */
 static void offline_css(struct cgroup_subsys_state *css)
 {
@@ -5582,7 +5603,8 @@ static void offline_css(struct cgroup_subsys_state *css)
 static void async_alloc_ws_fn(struct work_struct *ws) {
 	struct cgroup_subsys_state *css = container_of(ws, struct cgroup_subsys_state, async_init_work);
 	css->ss->async_alloc_fn(ws);
-	// printk("access async alloc cpu subsystem\n");
+	printk("access async alloc subsystem\n");
+	online_css_free_lock(css);
 }
 
 static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
@@ -5621,15 +5643,15 @@ static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
 	cgroup_idr_replace(&ss->css_idr, css, css->id);
 
 	
-	err = online_css(css);
-	if (err)
-		goto err_list_del;
+	// err = online_css(css);
+	// if (err)
+	// 	goto err_list_del;
 
 
 	return css;
 
-err_list_del:
-	list_del_rcu(&css->sibling);
+// err_list_del:
+// 	list_del_rcu(&css->sibling);
 err_free_css:
 	list_del_rcu(&css->rstat_css_node);
 	INIT_RCU_WORK(&css->destroy_rwork, css_free_rwork_fn);
@@ -6638,6 +6660,13 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 					current->nsproxy->cgroup_ns);
 	if (ret)
 		goto err;
+
+	int i;
+	struct cgroup_subsys *ss;
+	do_each_subsys_mask(ss, i, have_async_callback) {
+		ss->flush_async_work(dst_cgrp->subsys[i]);
+	} while_each_subsys_mask();
+
 
 	kargs->cset = find_css_set(cset, dst_cgrp);
 	if (!kargs->cset) {

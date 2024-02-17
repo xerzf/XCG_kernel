@@ -12844,8 +12844,8 @@ err:
 int async_alloc_fair_rq_se(struct task_group *tg, struct task_group *parent, int cpu) {
 	struct sched_entity *se;
 	struct cfs_rq *cfs_rq;
-	struct rq *rq;
-	struct rq_flags rf;
+	// struct rq *rq;
+	// struct rq_flags rf;
 	int i = cpu;
 
 	cfs_rq = kzalloc_node(sizeof(struct cfs_rq),
@@ -12863,13 +12863,13 @@ int async_alloc_fair_rq_se(struct task_group *tg, struct task_group *parent, int
 	init_entity_runnable_average(se);
 
 	// oline the rq
-	rq = cpu_rq(i);
-	se = tg->se[i];
-	rq_lock_irq(rq, &rf);
-	update_rq_clock(rq);
-	attach_entity_cfs_rq(se);
-	sync_throttle(tg, i);
-	rq_unlock_irq(rq, &rf);
+	// rq = cpu_rq(i);
+	// se = tg->se[i];
+	// rq_lock_irq(rq, &rf);
+	// update_rq_clock(rq);
+	// attach_entity_cfs_rq(se);
+	// sync_throttle(tg, i);
+	// rq_unlock_irq(rq, &rf);
 
 	return 0;
 
