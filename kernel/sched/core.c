@@ -10373,12 +10373,6 @@ err:
 	return ERR_PTR(-ENOMEM);
 }
 
-static void sched_flush_async_work_fn(struct cgroup_subsys_state* css) {
-	struct task_group *tg = (struct task_group *)css;
-	if (tg->async == 1) {
-		flush_work(&tg->css.async_init_work);
-	}
-}
 
 
 static void sched_async_create_group_work_fn(struct work_struct *work) {
@@ -10405,6 +10399,7 @@ struct task_group *sched_async_create_group(struct task_group *parent)
 	if (!tg)
 		return ERR_PTR(-ENOMEM);
 	tg->async = 1;
+	tg->css.is_async = true;
 	tg->parent = parent;
 	// INIT_WORK(&tg->css.async_init_ws, sched_async_create_group_work_fn);
 	// queue_work(wq, &tg->css.async_init_ws);
@@ -11516,7 +11511,7 @@ cpu_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
 		printk("sched_async_create_group error\n");
 		return ERR_PTR(-ENOMEM);
 	}
-		
+	
 	return &tg->css;
 }
 
@@ -11529,7 +11524,6 @@ struct cgroup_subsys cpu_cgrp_subsys = {
 	.css_local_stat_show = cpu_local_stat_show,
 	.css_async_alloc = cpu_cgroup_css_async_alloc,
 	.async_alloc_fn = sched_async_create_group_work_fn,
-	.flush_async_work = sched_flush_async_work_fn,
 #ifdef CONFIG_RT_GROUP_SCHED
 	.can_attach	= cpu_cgroup_can_attach,
 #endif

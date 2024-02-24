@@ -6660,13 +6660,14 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 	if (ret)
 		goto err;
 
-	int i;
-	struct cgroup_subsys *ss;
-	do_each_subsys_mask(ss, i, have_async_callback) {
-		if (dst_cgrp->subsys[i]->is_async) {
-			flush_work(&dst_cgrp->subsys[i]->async_init_work);
-		}
-	} while_each_subsys_mask();
+	// int i;
+	// struct cgroup_subsys *ss;
+	// do_each_subsys_mask(ss, i, have_async_callback) {
+	if (dst_cgrp->aflags == 1) {
+		flush_work(&dst_cgrp->subsys[cpuset_cgrp_id]->async_init_work);
+		flush_work(&dst_cgrp->subsys[cpu_cgrp_id]->async_init_work);
+	}
+	// } while_each_subsys_mask();
 
 
 	kargs->cset = find_css_set(cset, dst_cgrp);

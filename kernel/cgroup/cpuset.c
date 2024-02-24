@@ -3950,7 +3950,8 @@ cpuset_css_async_alloc(struct cgroup_subsys_state *parent_css)
 	// if (cgroup_subsys_on_dfl(cpuset_cgrp_subsys))
 	// 	__set_bit(CS_MEMORY_MIGRATE, &cs->flags);
 
-	cs->async = 1;
+	// cs->async = 1;
+	cs->css.is_async=true;
 
 	return &cs->css;
 }
@@ -3981,13 +3982,6 @@ cpuset_css_async_alloc_work_fn(struct work_struct *work)
 	// return &cs->css;
 }
 
-static void 
-cpuset_flush_async_wrok(struct cgroup_subsys_state *css){
-	struct cpuset *cs = css_cs(css);
-	if (cs->async != 0) {
-			flush_work(&cs->css.async_init_work);
-	}
-}
 
 
 static int cpuset_css_online(struct cgroup_subsys_state *css)
@@ -4241,7 +4235,6 @@ struct cgroup_subsys cpuset_cgrp_subsys = {
 	.css_alloc	= cpuset_css_alloc,
 	.css_async_alloc = cpuset_css_async_alloc, 
 	.async_alloc_fn = cpuset_css_async_alloc_work_fn, 
-	.flush_async_work = cpuset_flush_async_wrok, 
 	.css_online	= cpuset_css_online,
 	.css_offline	= cpuset_css_offline,
 	.css_free	= cpuset_css_free,

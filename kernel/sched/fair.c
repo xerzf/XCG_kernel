@@ -12926,7 +12926,7 @@ void online_fair_sched_group(struct task_group *tg)
 	struct rq_flags rf;
 	struct rq *rq;
 	int i;
-	if (tg->async != 0) 
+	if (tg->async == 1) 
 		return;
 
 	for_each_possible_cpu(i) {
