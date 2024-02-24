@@ -202,6 +202,7 @@ struct cgroup_subsys_state {
 	struct work_struct destroy_work;
 	struct rcu_work destroy_rwork;
 
+	bool is_async;
 	struct work_struct async_init_work;
 
 	/*

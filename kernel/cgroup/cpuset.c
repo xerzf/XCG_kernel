@@ -3959,7 +3959,7 @@ static void
 cpuset_css_async_alloc_work_fn(struct work_struct *work)
 {
 	struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
-	struct cpuset *cs = (struct cpuset *)css;
+	struct cpuset *cs = css_cs(css);
 
 	if (alloc_cpumasks(cs, NULL)) {
 		kfree(cs);
@@ -3983,8 +3983,8 @@ cpuset_css_async_alloc_work_fn(struct work_struct *work)
 
 static void 
 cpuset_flush_async_wrok(struct cgroup_subsys_state *css){
-	struct cpuset *cs = (struct cpuset *)css;
-	if (cs->async==1) {
+	struct cpuset *cs = css_cs(css);
+	if (cs->async != 0) {
 			flush_work(&cs->css.async_init_work);
 	}
 }

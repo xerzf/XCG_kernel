@@ -5560,8 +5560,7 @@ static int online_css(struct cgroup_subsys_state *css)
 }
 
 /* invoke ->css_online() on a new CSS and mark it online if successful */
-static int online_css_free_lock
-(struct cgroup_subsys_state *css)
+static int online_css_free_lock(struct cgroup_subsys_state *css)
 {
 	struct cgroup_subsys *ss = css->ss;
 	int ret = 0;
@@ -6664,7 +6663,9 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 	int i;
 	struct cgroup_subsys *ss;
 	do_each_subsys_mask(ss, i, have_async_callback) {
-		ss->flush_async_work(dst_cgrp->subsys[i]);
+		if (dst_cgrp->subsys[i]->is_async) {
+			flush_work(&dst_cgrp->subsys[i]->async_init_work);
+		}
 	} while_each_subsys_mask();
 
 
