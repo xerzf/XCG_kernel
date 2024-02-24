@@ -3918,6 +3918,7 @@ cpuset_css_alloc(struct cgroup_subsys_state *parent_css)
 	if (cgroup_subsys_on_dfl(cpuset_cgrp_subsys))
 		__set_bit(CS_MEMORY_MIGRATE, &cs->flags);
 
+	cs->async = 0;
 	return &cs->css;
 }
 
@@ -3933,21 +3934,21 @@ cpuset_css_async_alloc(struct cgroup_subsys_state *parent_css)
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
 
-	if (alloc_cpumasks(cs, NULL)) {
-		kfree(cs);
-		return ERR_PTR(-ENOMEM);
-	}
+	// if (alloc_cpumasks(cs, NULL)) {
+	// 	kfree(cs);
+	// 	return ERR_PTR(-ENOMEM);
+	// }
 
-	__set_bit(CS_SCHED_LOAD_BALANCE, &cs->flags);
-	nodes_clear(cs->mems_allowed);
-	nodes_clear(cs->effective_mems);
-	fmeter_init(&cs->fmeter);
-	cs->relax_domain_level = -1;
-	INIT_LIST_HEAD(&cs->remote_sibling);
+	// __set_bit(CS_SCHED_LOAD_BALANCE, &cs->flags);
+	// nodes_clear(cs->mems_allowed);
+	// nodes_clear(cs->effective_mems);
+	// fmeter_init(&cs->fmeter);
+	// cs->relax_domain_level = -1;
+	// INIT_LIST_HEAD(&cs->remote_sibling);
 
-	/* Set CS_MEMORY_MIGRATE for default hierarchy */
-	if (cgroup_subsys_on_dfl(cpuset_cgrp_subsys))
-		__set_bit(CS_MEMORY_MIGRATE, &cs->flags);
+	// /* Set CS_MEMORY_MIGRATE for default hierarchy */
+	// if (cgroup_subsys_on_dfl(cpuset_cgrp_subsys))
+	// 	__set_bit(CS_MEMORY_MIGRATE, &cs->flags);
 
 	cs->async = 1;
 
