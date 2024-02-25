@@ -5622,11 +5622,13 @@ static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
 	if (IS_ERR(css))
 		return css;
 
-
+	
 	init_and_link_css(css, ss, cgrp);
+	css->is_async = true;
 
 	INIT_WORK(&css->async_init_work, async_alloc_ws_fn);
 	queue_work(subsys_init_wq, &css->async_init_work);
+
 
 	err = percpu_ref_init(&css->refcnt, css_release, 0, GFP_KERNEL);
 	if (err)
@@ -6660,14 +6662,17 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 	if (ret)
 		goto err;
 
-	// int i;
-	// struct cgroup_subsys *ss;
-	// do_each_subsys_mask(ss, i, have_async_callback) {
-	if (dst_cgrp->aflags == 1) {
-		flush_work(&dst_cgrp->subsys[cpuset_cgrp_id]->async_init_work);
-		flush_work(&dst_cgrp->subsys[cpu_cgrp_id]->async_init_work);
-	}
-	// } while_each_subsys_mask();
+	int i;
+	struct cgroup_subsys *ss;
+	do_each_subsys_mask(ss, i, have_async_callback) {
+		if (dst_cgrp->subsys[i]->is_async) {
+			flush_work(&dst_cgrp->subsys[i]->async_init_work);
+		}
+	// if (dst_cgrp->aflags == 1) {
+	// 	flush_work(&dst_cgrp->subsys[cpuset_cgrp_id]->async_init_work);
+	// 	flush_work(&dst_cgrp->subsys[cpu_cgrp_id]->async_init_work);
+	// }
+	} while_each_subsys_mask();
 
 
 	kargs->cset = find_css_set(cset, dst_cgrp);

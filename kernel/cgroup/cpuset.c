@@ -3951,7 +3951,6 @@ cpuset_css_async_alloc(struct cgroup_subsys_state *parent_css)
 	// 	__set_bit(CS_MEMORY_MIGRATE, &cs->flags);
 
 	// cs->async = 1;
-	cs->css.is_async=true;
 
 	return &cs->css;
 }

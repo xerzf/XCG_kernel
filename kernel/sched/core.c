@@ -10399,7 +10399,6 @@ struct task_group *sched_async_create_group(struct task_group *parent)
 	if (!tg)
 		return ERR_PTR(-ENOMEM);
 	tg->async = 1;
-	tg->css.is_async = true;
 	tg->parent = parent;
 	// INIT_WORK(&tg->css.async_init_ws, sched_async_create_group_work_fn);
 	// queue_work(wq, &tg->css.async_init_ws);
