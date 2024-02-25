@@ -5618,7 +5618,7 @@ static void offline_css(struct cgroup_subsys_state *css)
 static void async_alloc_ws_fn(struct work_struct *ws) {
 	struct cgroup_subsys_state *css = container_of(ws, struct cgroup_subsys_state, async_init_work);
 	css->ss->async_alloc_fn(ws);
-	printk("access async alloc subsystem\n");
+	// printk("access async alloc subsystem\n");
 	online_css_async_fn(css);
 }
 
