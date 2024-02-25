@@ -5560,7 +5560,23 @@ static int online_css(struct cgroup_subsys_state *css)
 }
 
 /* invoke ->css_online() on a new CSS and mark it online if successful */
-static int online_css_free_lock(struct cgroup_subsys_state *css)
+static int online_css_async(struct cgroup_subsys_state *css)
+{
+	struct cgroup_subsys *ss = css->ss;
+
+	lockdep_assert_held(&cgroup_mutex);
+
+	css->flags |= CSS_ONLINE;
+	rcu_assign_pointer(css->cgroup->subsys[ss->id], css);
+
+	atomic_inc(&css->online_cnt);
+	if (css->parent)
+		atomic_inc(&css->parent->online_cnt);
+	return 0;
+}
+
+/* invoke ->css_online() on a new CSS and mark it online if successful */
+static int online_css_async_fn(struct cgroup_subsys_state *css)
 {
 	struct cgroup_subsys *ss = css->ss;
 	int ret = 0;
@@ -5569,14 +5585,14 @@ static int online_css_free_lock(struct cgroup_subsys_state *css)
 
 	if (ss->css_online)
 		ret = ss->css_online(css);
-	if (!ret) {
-		css->flags |= CSS_ONLINE;
-		rcu_assign_pointer(css->cgroup->subsys[ss->id], css);
+	// if (!ret) {
+	// 	css->flags |= CSS_ONLINE;
+	// 	rcu_assign_pointer(css->cgroup->subsys[ss->id], css);
 
-		atomic_inc(&css->online_cnt);
-		if (css->parent)
-			atomic_inc(&css->parent->online_cnt);
-	}
+	// 	atomic_inc(&css->online_cnt);
+	// 	if (css->parent)
+	// 		atomic_inc(&css->parent->online_cnt);
+	// }
 	return ret;
 }
 
@@ -5603,7 +5619,7 @@ static void async_alloc_ws_fn(struct work_struct *ws) {
 	struct cgroup_subsys_state *css = container_of(ws, struct cgroup_subsys_state, async_init_work);
 	css->ss->async_alloc_fn(ws);
 	printk("access async alloc subsystem\n");
-	online_css_free_lock(css);
+	online_css_async_fn(css);
 }
 
 static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
@@ -5644,9 +5660,8 @@ static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
 	cgroup_idr_replace(&ss->css_idr, css, css->id);
 
 	
-	// err = online_css(css);
-	// if (err)
-	// 	goto err_list_del;
+	online_css_async(css);
+
 
 
 	return css;
@@ -6662,23 +6677,29 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 	if (ret)
 		goto err;
 
-	int i;
-	struct cgroup_subsys *ss;
-	do_each_subsys_mask(ss, i, have_async_callback) {
-		if (dst_cgrp->subsys[i]->is_async) {
-			flush_work(&dst_cgrp->subsys[i]->async_init_work);
-		}
-	// if (dst_cgrp->aflags == 1) {
-	// 	flush_work(&dst_cgrp->subsys[cpuset_cgrp_id]->async_init_work);
-	// 	flush_work(&dst_cgrp->subsys[cpu_cgrp_id]->async_init_work);
-	// }
-	} while_each_subsys_mask();
-
+	// int i;
+	// struct cgroup_subsys *ss;
+	// do_each_subsys_mask(ss, i, have_async_callback) {
+	// 	if (dst_cgrp->subsys[i]->is_async) {
+	// 		flush_work(&dst_cgrp->subsys[i]->async_init_work);
+	// 	}
+	// // if (dst_cgrp->aflags == 1) {
+	// // 	flush_work(&dst_cgrp->subsys[cpuset_cgrp_id]->async_init_work);
+	// // 	flush_work(&dst_cgrp->subsys[cpu_cgrp_id]->async_init_work);
+	// // }
+	// } while_each_subsys_mask();
+	
 
 	kargs->cset = find_css_set(cset, dst_cgrp);
 	if (!kargs->cset) {
 		ret = -ENOMEM;
 		goto err;
+	}
+
+	struct cgroup_subsys_state *css;
+	css = kargs->cset->subsys[cpuset_cgrp_id];
+	if (css->is_async) {
+			flush_work(&css->async_init_work);
 	}
 
 	put_css_set(cset);
