@@ -7569,6 +7569,11 @@ static void uncharge_folio(struct folio *folio, struct uncharge_gather *ug)
 	if (!memcg)
 		return;
 
+	if (memcg->css.is_async) {
+		flush_work(&memcg->css.async_init_work);
+		memcg->css.is_async = false;
+	}
+
 	if (ug->memcg != memcg) {
 		if (ug->memcg) {
 			uncharge_batch(ug);
