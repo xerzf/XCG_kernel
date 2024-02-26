@@ -6239,7 +6239,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 	have_exit_callback |= (bool)ss->exit << ss->id;
 	have_release_callback |= (bool)ss->release << ss->id;
 	have_canfork_callback |= (bool)ss->can_fork << ss->id;
-	have_async_callback |= (bool)ss->css_async_alloc << ss->id;
+	have_async_callback |= ((bool)ss->css_async_alloc && ss->id != memory_cgrp_id) << ss->id;
 
 	/* At system boot, before all subsystems have been
 	 * registered, no tasks have been forked, so we don't

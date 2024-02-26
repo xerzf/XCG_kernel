@@ -204,12 +204,12 @@ struct mem_cgroup {
 	/* Private memcg ID. Used to ID objects that outlive the cgroup */
 	struct mem_cgroup_id id;
 
-	/* Accounted resources */
+	/* Accounted resources */  // 内存计数器
 	struct page_counter memory;		/* Both v1 & v2 */
 
-	union {
+	union { 
 		struct page_counter swap;	/* v2 only */
-		struct page_counter memsw;	/* v1 only */
+		struct page_counter memsw;	/* v1 only */ // page + swap内存
 	};
 
 	/* Legacy consumer-oriented counters */
