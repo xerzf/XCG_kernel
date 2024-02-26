@@ -5505,7 +5505,10 @@ static void css_release(struct percpu_ref *ref)
 {
 	struct cgroup_subsys_state *css =
 		container_of(ref, struct cgroup_subsys_state, refcnt);
-
+	if (css->is_async) {
+		flush_work(&css->async_init_work);
+		css->is_async = false;
+	}
 	INIT_WORK(&css->destroy_work, css_release_work_fn);
 	queue_work(cgroup_destroy_wq, &css->destroy_work);
 }
