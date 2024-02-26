@@ -5746,6 +5746,7 @@ static void mem_cgroup_css_async_alloc_fn(struct work_struct *work) {
 		page_counter_init(&memcg->tcpmem, NULL);
 
 		root_mem_cgroup = memcg;
+		return;
 	}
 
 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)

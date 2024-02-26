@@ -5623,7 +5623,7 @@ static void async_alloc_ws_fn(struct work_struct *ws) {
 	struct cgroup_subsys_state *css = container_of(ws, struct cgroup_subsys_state, async_init_work);
 	css->ss->async_alloc_fn(ws);
 	// printk("access async alloc subsystem\n");
-	list_add_tail_rcu(&css->sibling, &css->parent->children);
+	// list_add_tail_rcu(&css->sibling, &css->parent->children);
 	online_css_async_fn(css);
 }
 
@@ -5662,7 +5662,7 @@ static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
 	css->id = err;
 
 	/* @css is ready to be brought online now, make it visible */
-	// list_add_tail_rcu(&css->sibling, &parent_css->children);
+	list_add_tail_rcu(&css->sibling, &parent_css->children);
 	cgroup_idr_replace(&ss->css_idr, css, css->id);
 
 	
