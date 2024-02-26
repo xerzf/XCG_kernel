@@ -6701,6 +6701,11 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 	if (css->is_async) {
 			flush_work(&css->async_init_work);
 	}
+	css = kargs->cset->subsys[memory_cgrp_id];
+	if (css->is_async) {
+			flush_work(&css->async_init_work);
+	}
+
 
 	put_css_set(cset);
 	fput(f);
