@@ -5624,11 +5624,11 @@ mem_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
 	struct mem_cgroup *parent = mem_cgroup_from_css(parent_css);
 	struct mem_cgroup *memcg, *old_memcg;
 
-	old_memcg = set_active_memcg(parent);
+	// old_memcg = set_active_memcg(parent);
 	memcg = mem_cgroup_async_alloc();
-	set_active_memcg(old_memcg);
-	if (IS_ERR(memcg))
-		return ERR_CAST(memcg);
+	// set_active_memcg(old_memcg);
+	// if (IS_ERR(memcg))
+	// 	return ERR_CAST(memcg);
 
 	memcg->parent = parent;
 
@@ -5675,6 +5675,10 @@ static void mem_cgroup_css_async_alloc_fn(struct work_struct *work) {
 	int node;
 	int __maybe_unused i;
 
+	struct mem_cgroup *old_memcg;
+	old_memcg = set_active_memcg(parent);
+	
+
 	memcg->vmstats = kzalloc(sizeof(struct memcg_vmstats), GFP_KERNEL);
 	if (!memcg->vmstats)
 		panic("unhandle kzalloc memcg->vmstats fail\n");
@@ -5715,6 +5719,11 @@ static void mem_cgroup_css_async_alloc_fn(struct work_struct *work) {
 	memcg->deferred_split_queue.split_queue_len = 0;
 #endif
 	lru_gen_init_memcg(memcg);
+	
+
+	set_active_memcg(old_memcg);
+	if (IS_ERR(memcg))
+		panic("unhandle kzalloc memcg->vmstats fail\n");
 
 
 	page_counter_set_high(&memcg->memory, PAGE_COUNTER_MAX);

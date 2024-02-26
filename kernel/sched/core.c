@@ -4808,10 +4808,7 @@ void sched_cgroup_fork(struct task_struct *p, struct kernel_clone_args *kargs)
 	struct task_group *tg;
 	tg = container_of(kargs->cset->subsys[cpu_cgrp_id],
 				  struct task_group, css);
-	if (tg->css.is_async) {
-			flush_work(&tg->css.async_init_work);
-	}
-
+	
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
 #ifdef CONFIG_CGROUP_SCHED
 	if (1) {
