@@ -6645,13 +6645,28 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 
 	struct cgroup_subsys *ss;
 	struct cgroup_subsys_state *css;
-	int i;
-	do_each_subsys_mask(ss, i, have_async_callback) {
-		css = dst_cgrp->subsys[i];
-		if (css->is_async) {
-			flush_work(&css->async_init_work);
-		}
-	} while_each_subsys_mask();
+	// int i;
+	// do_each_subsys_mask(ss, i, have_async_callback) {
+	// 	css = dst_cgrp->subsys[i];
+	// 	if (css->is_async) {
+	// 		flush_work(&css->async_init_work);
+	// 	}
+	// } while_each_subsys_mask();
+	css = dst_cgrp->subsys[cpu_cgrp_id];
+	if (css->is_async) {
+		flush_work(&css->async_init_work);
+		css->is_async = false;
+	}
+	css = dst_cgrp->subsys[cpuset_cgrp_id];
+	if (css->is_async) {
+		flush_work(&css->async_init_work);
+		css->is_async = false;
+	}
+	css = dst_cgrp->subsys[memory_cgrp_id];
+	if (css->is_async) {
+		flush_work(&css->async_init_work);
+		css->is_async = false;
+	}
 
 	if (cgroup_is_dead(dst_cgrp)) {
 		ret = -ENODEV;
