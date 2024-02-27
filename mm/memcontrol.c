@@ -5520,9 +5520,9 @@ static struct mem_cgroup *mem_cgroup_async_alloc(void)
 		goto fail;
 	}
 
-	// memcg->vmstats = kzalloc(sizeof(struct memcg_vmstats), GFP_KERNEL);
-	// if (!memcg->vmstats)
-	// 	goto fail;
+	memcg->vmstats = kzalloc(sizeof(struct memcg_vmstats), GFP_KERNEL);
+	if (!memcg->vmstats)
+		goto fail;
 
 	// memcg->vmstats_percpu = alloc_percpu_gfp(struct memcg_vmstats_percpu,
 	// 					 GFP_KERNEL_ACCOUNT);
@@ -5533,33 +5533,33 @@ static struct mem_cgroup *mem_cgroup_async_alloc(void)
 	// 	if (alloc_mem_cgroup_per_node_info(memcg, node))
 	// 		goto fail;
 
-	// if (memcg_wb_domain_init(memcg, GFP_KERNEL))
-	// 	goto fail;
+	if (memcg_wb_domain_init(memcg, GFP_KERNEL))
+		goto fail;
 
-// 	INIT_WORK(&memcg->high_work, high_work_func);
-// 	INIT_LIST_HEAD(&memcg->oom_notify);
-// 	mutex_init(&memcg->thresholds_lock);
-// 	spin_lock_init(&memcg->move_lock);
-// 	vmpressure_init(&memcg->vmpressure);
-// 	INIT_LIST_HEAD(&memcg->event_list);
-// 	spin_lock_init(&memcg->event_list_lock);
-// 	memcg->socket_pressure = jiffies;
-// #ifdef CONFIG_MEMCG_KMEM
-// 	memcg->kmemcg_id = -1;
-// 	INIT_LIST_HEAD(&memcg->objcg_list);
-// #endif
-// #ifdef CONFIG_CGROUP_WRITEBACK
-// 	INIT_LIST_HEAD(&memcg->cgwb_list);
-// 	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++)
-// 		memcg->cgwb_frn[i].done =
-// 			__WB_COMPLETION_INIT(&memcg_cgwb_frn_waitq);
-// #endif
-// #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-// 	spin_lock_init(&memcg->deferred_split_queue.split_queue_lock);
-// 	INIT_LIST_HEAD(&memcg->deferred_split_queue.split_queue);
-// 	memcg->deferred_split_queue.split_queue_len = 0;
-// #endif
-// 	lru_gen_init_memcg(memcg);
+	INIT_WORK(&memcg->high_work, high_work_func);
+	INIT_LIST_HEAD(&memcg->oom_notify);
+	mutex_init(&memcg->thresholds_lock);
+	spin_lock_init(&memcg->move_lock);
+	vmpressure_init(&memcg->vmpressure);
+	INIT_LIST_HEAD(&memcg->event_list);
+	spin_lock_init(&memcg->event_list_lock);
+	memcg->socket_pressure = jiffies;
+#ifdef CONFIG_MEMCG_KMEM
+	memcg->kmemcg_id = -1;
+	INIT_LIST_HEAD(&memcg->objcg_list);
+#endif
+#ifdef CONFIG_CGROUP_WRITEBACK
+	INIT_LIST_HEAD(&memcg->cgwb_list);
+	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++)
+		memcg->cgwb_frn[i].done =
+			__WB_COMPLETION_INIT(&memcg_cgwb_frn_waitq);
+#endif
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	spin_lock_init(&memcg->deferred_split_queue.split_queue_lock);
+	INIT_LIST_HEAD(&memcg->deferred_split_queue.split_queue);
+	memcg->deferred_split_queue.split_queue_len = 0;
+#endif
+	lru_gen_init_memcg(memcg);
 	return memcg;
 fail:
 	mem_cgroup_id_remove(memcg);
@@ -5624,105 +5624,13 @@ mem_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
 	struct mem_cgroup *parent = mem_cgroup_from_css(parent_css);
 	struct mem_cgroup *memcg, *old_memcg;
 
-	// old_memcg = set_active_memcg(parent);
+	old_memcg = set_active_memcg(parent);
 	memcg = mem_cgroup_async_alloc();
-// 	set_active_memcg(old_memcg);
+	set_active_memcg(old_memcg);
 	if (IS_ERR(memcg))
 		return ERR_CAST(memcg);
 
 	memcg->parent = parent;
-
-// 	page_counter_set_high(&memcg->memory, PAGE_COUNTER_MAX);
-// 	WRITE_ONCE(memcg->soft_limit, PAGE_COUNTER_MAX);
-// #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_ZSWAP)
-// 	memcg->zswap_max = PAGE_COUNTER_MAX;
-// #endif
-// 	page_counter_set_high(&memcg->swap, PAGE_COUNTER_MAX);
-// 	if (parent) {
-// 		WRITE_ONCE(memcg->swappiness, mem_cgroup_swappiness(parent));
-// 		WRITE_ONCE(memcg->oom_kill_disable, READ_ONCE(parent->oom_kill_disable));
-
-// 		page_counter_init(&memcg->memory, &parent->memory);
-// 		page_counter_init(&memcg->swap, &parent->swap);
-// 		page_counter_init(&memcg->kmem, &parent->kmem);
-// 		page_counter_init(&memcg->tcpmem, &parent->tcpmem);
-// 	} else {
-// 		init_memcg_events();
-// 		page_counter_init(&memcg->memory, NULL);
-// 		page_counter_init(&memcg->swap, NULL);
-// 		page_counter_init(&memcg->kmem, NULL);
-// 		page_counter_init(&memcg->tcpmem, NULL);
-
-// 		root_mem_cgroup = memcg;
-// 		return &memcg->css;
-// 	}
-
-// 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
-// 		static_branch_inc(&memcg_sockets_enabled_key);
-
-// #if defined(CONFIG_MEMCG_KMEM)
-// 	if (!cgroup_memory_nobpf)
-// 		static_branch_inc(&memcg_bpf_enabled_key);
-// #endif
-
-	return &memcg->css;
-}
-
-static void mem_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css) { 
-	// struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
-	struct mem_cgroup *memcg = (struct mem_cgroup *)css;
-	struct mem_cgroup *parent = memcg->parent;
-	int node;
-	int __maybe_unused i;
-
-	struct mem_cgroup *old_memcg;
-	
-
-	old_memcg = set_active_memcg(parent);
-	memcg->vmstats = kzalloc(sizeof(struct memcg_vmstats), GFP_KERNEL);
-	if (!memcg->vmstats)
-		panic("unhandle kzalloc memcg->vmstats fail\n");
-
-	memcg->vmstats_percpu = alloc_percpu_gfp(struct memcg_vmstats_percpu,
-						 GFP_KERNEL_ACCOUNT);
-	if (!memcg->vmstats_percpu)
-		panic("unhandle alloc_percpu_gfp fail\n");
-
-	for_each_node(node)
-		if (alloc_mem_cgroup_per_node_info(memcg, node))
-			panic("unhandle alloc_mem_cgroup_per_node_info fail\n");
-
-	if (memcg_wb_domain_init(memcg, GFP_KERNEL))
-		panic("unhandle memcg_wb_domain_init fail\n");
-
-	INIT_WORK(&memcg->high_work, high_work_func);
-	INIT_LIST_HEAD(&memcg->oom_notify);
-	mutex_init(&memcg->thresholds_lock);
-	spin_lock_init(&memcg->move_lock);
-	vmpressure_init(&memcg->vmpressure);
-	INIT_LIST_HEAD(&memcg->event_list);
-	spin_lock_init(&memcg->event_list_lock);
-	memcg->socket_pressure = jiffies;
-#ifdef CONFIG_MEMCG_KMEM
-	memcg->kmemcg_id = -1;
-	INIT_LIST_HEAD(&memcg->objcg_list);
-#endif
-#ifdef CONFIG_CGROUP_WRITEBACK
-	INIT_LIST_HEAD(&memcg->cgwb_list);
-	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++)
-		memcg->cgwb_frn[i].done =
-			__WB_COMPLETION_INIT(&memcg_cgwb_frn_waitq);
-#endif
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	spin_lock_init(&memcg->deferred_split_queue.split_queue_lock);
-	INIT_LIST_HEAD(&memcg->deferred_split_queue.split_queue);
-	memcg->deferred_split_queue.split_queue_len = 0;
-#endif
-	lru_gen_init_memcg(memcg);
-
-
-	set_active_memcg(old_memcg);
-
 
 	page_counter_set_high(&memcg->memory, PAGE_COUNTER_MAX);
 	WRITE_ONCE(memcg->soft_limit, PAGE_COUNTER_MAX);
@@ -5746,7 +5654,7 @@ static void mem_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css) {
 		page_counter_init(&memcg->tcpmem, NULL);
 
 		root_mem_cgroup = memcg;
-		return;
+		return &memcg->css;
 	}
 
 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
@@ -5756,6 +5664,31 @@ static void mem_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css) {
 	if (!cgroup_memory_nobpf)
 		static_branch_inc(&memcg_bpf_enabled_key);
 #endif
+
+	return &memcg->css;
+}
+
+static void mem_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css) { 
+	// struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
+	struct mem_cgroup *memcg = (struct mem_cgroup *)css;
+	struct mem_cgroup *parent = memcg->parent;
+	int node;
+	int __maybe_unused i;
+
+	struct mem_cgroup *old_memcg;
+	
+	old_memcg = set_active_memcg(parent);
+	memcg->vmstats_percpu = alloc_percpu_gfp(struct memcg_vmstats_percpu,
+						 GFP_KERNEL_ACCOUNT);
+	if (!memcg->vmstats_percpu)
+		panic("alloc_percpu_gfp failed.\n");
+
+	for_each_node(node)
+		if (alloc_mem_cgroup_per_node_info(memcg, node))
+			panic("alloc_mem_cgroup_per_node_info failed.\n");
+
+
+	set_active_memcg(old_memcg);
 
 }
 
@@ -7607,11 +7540,6 @@ static void uncharge_folio(struct folio *folio, struct uncharge_gather *ug)
 
 	if (!memcg)
 		return;
-
-	if (memcg->css.is_async) {
-		flush_work(&memcg->css.async_init_work);
-		memcg->css.is_async = false;
-	}
 
 	if (ug->memcg != memcg) {
 		if (ug->memcg) {
