@@ -2722,6 +2722,10 @@ __latent_entropy struct task_struct *copy_process(
 	proc_fork_connector(p);
 	sched_post_fork(p);
 	cgroup_post_fork(p, args);
+	if (!IS_ERR_OR_NULL(args->cgrp)&&args->cgrp->aflags) {
+		flush_work(&args->cgrp->alloc_async_work);
+	}
+
 	perf_event_fork(p);
 
 	trace_task_newtask(p, clone_flags);

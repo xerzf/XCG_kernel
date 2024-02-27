@@ -6660,10 +6660,6 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 		goto err;
 	}
 
-	if (dst_cgrp->aflags) {
-		flush_work(&dst_cgrp->alloc_async_work);
-	}
-
 	// struct cgroup_subsys *ss;
 	// struct cgroup_subsys_state *css;
 	// int i;
