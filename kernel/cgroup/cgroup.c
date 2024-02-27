@@ -3183,6 +3183,9 @@ static bool css_visible(struct cgroup_subsys_state *css)
 	return cgroup_on_dfl(cgrp) && ss->implicit_on_dfl;
 }
 
+static void async_alloc_ws_fn(struct cgroup_subsys_state *css);
+static void cgroup_subsys_async_fn(struct work_struct *ws);
+
 /**
  * cgroup_apply_control_enable - enable or show csses according to control
  * @cgrp: root of the target subtree
@@ -3235,6 +3238,8 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp, bool async)
 				}
 			}
 		}
+		INIT_WORK(&cgrp->alloc_async_work, cgroup_subsys_async_fn);
+		queue_work(subsys_init_wq, &cgrp->alloc_async_work);
 	} else {
 		cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp) {
 			for_each_subsys(ss, ssid) {
@@ -5619,12 +5624,25 @@ static void offline_css(struct cgroup_subsys_state *css)
 	wake_up_all(&css->cgroup->offline_waitq);
 }
 
-static void async_alloc_ws_fn(struct work_struct *ws) {
-	struct cgroup_subsys_state *css = container_of(ws, struct cgroup_subsys_state, async_init_work);
-	css->ss->async_alloc_fn(ws);
+static void async_alloc_ws_fn(struct cgroup_subsys_state *css) {
+	// struct cgroup_subsys_state *css = container_of(ws, struct cgroup_subsys_state, async_init_work);
+	css->ss->async_alloc_fn(css);
 	// printk("access async alloc subsystem\n");
 	// list_add_tail_rcu(&css->sibling, &css->parent->children);
 	online_css_async_fn(css);
+}
+
+static void cgroup_subsys_async_fn(struct work_struct *ws) {
+	struct cgroup* cgrp = container_of(ws, struct cgroup, alloc_async_work);
+	struct cgroup_subsys *ss;
+	struct cgroup_subsys_state *css;
+	int i;
+	do_each_subsys_mask(ss, i, have_async_callback) {
+		css = cgrp->subsys[i];
+		if (css->is_async) {
+			async_alloc_ws_fn(css);
+		}
+	} while_each_subsys_mask();
 }
 
 static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
@@ -5647,9 +5665,6 @@ static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
 	init_and_link_css(css, ss, cgrp);
 	css->is_async = true;
 	css->parent = parent_css;
-
-	INIT_WORK(&css->async_init_work, async_alloc_ws_fn);
-	queue_work(subsys_init_wq, &css->async_init_work);
 
 
 	err = percpu_ref_init(&css->refcnt, css_release, 0, GFP_KERNEL);
@@ -6239,7 +6254,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 	have_exit_callback |= (bool)ss->exit << ss->id;
 	have_release_callback |= (bool)ss->release << ss->id;
 	have_canfork_callback |= (bool)ss->can_fork << ss->id;
-	have_async_callback |= ((bool)ss->css_async_alloc && ss->id != memory_cgrp_id) << ss->id;
+	have_async_callback |= ((bool)ss->css_async_alloc && ss->id != memory_cgrp_id && ss->id != cpuset_cgrp_id) << ss->id;
 
 	/* At system boot, before all subsystems have been
 	 * registered, no tasks have been forked, so we don't
@@ -6649,8 +6664,12 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 		goto err;
 	}
 
-	struct cgroup_subsys *ss;
-	struct cgroup_subsys_state *css;
+	if (dst_cgrp->aflags) {
+		flush_work(&dst_cgrp->alloc_async_work);
+	}
+
+	// struct cgroup_subsys *ss;
+	// struct cgroup_subsys_state *css;
 	// int i;
 	// do_each_subsys_mask(ss, i, have_async_callback) {
 	// 	css = dst_cgrp->subsys[i];
@@ -6658,21 +6677,21 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 	// 		flush_work(&css->async_init_work);
 	// 	}
 	// } while_each_subsys_mask();
-	css = dst_cgrp->subsys[cpu_cgrp_id];
-	if (css->is_async) {
-		flush_work(&css->async_init_work);
-		css->is_async = false;
-	}
-	css = dst_cgrp->subsys[cpuset_cgrp_id];
-	if (css->is_async) {
-		flush_work(&css->async_init_work);
-		css->is_async = false;
-	}
-	css = dst_cgrp->subsys[memory_cgrp_id];
-	if (css->is_async) {
-		flush_work(&css->async_init_work);
-		css->is_async = false;
-	}
+	// css = dst_cgrp->subsys[cpu_cgrp_id];
+	// if (css->is_async) {
+	// 	flush_work(&css->async_init_work);
+	// 	css->is_async = false;
+	// }
+	// css = dst_cgrp->subsys[cpuset_cgrp_id];
+	// if (css->is_async) {
+	// 	flush_work(&css->async_init_work);
+	// 	css->is_async = false;
+	// }
+	// css = dst_cgrp->subsys[memory_cgrp_id];
+	// if (css->is_async) {
+	// 	flush_work(&css->async_init_work);
+	// 	css->is_async = false;
+	// }
 
 	if (cgroup_is_dead(dst_cgrp)) {
 		ret = -ENODEV;
@@ -6707,19 +6726,6 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 					current->nsproxy->cgroup_ns);
 	if (ret)
 		goto err;
-
-	// int i;
-	// struct cgroup_subsys *ss;
-	// do_each_subsys_mask(ss, i, have_async_callback) {
-	// 	if (dst_cgrp->subsys[i]->is_async) {
-	// 		flush_work(&dst_cgrp->subsys[i]->async_init_work);
-	// 	}
-	// // if (dst_cgrp->aflags == 1) {
-	// // 	flush_work(&dst_cgrp->subsys[cpuset_cgrp_id]->async_init_work);
-	// // 	flush_work(&dst_cgrp->subsys[cpu_cgrp_id]->async_init_work);
-	// // }
-	// } while_each_subsys_mask();
-	
 
 	kargs->cset = find_css_set(cset, dst_cgrp);
 	if (!kargs->cset) {

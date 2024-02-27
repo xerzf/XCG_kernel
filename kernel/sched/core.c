@@ -10372,8 +10372,8 @@ err:
 
 
 
-static void sched_async_create_group_work_fn(struct work_struct *work) {
-	struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
+static void sched_async_create_group_work_fn(struct cgroup_subsys_state *css) {
+	// struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
 	struct task_group *tg = (struct task_group *)css;
 	struct task_group *parent = tg->parent;
 	// printk("access async alloc cpu subsystem\n");
