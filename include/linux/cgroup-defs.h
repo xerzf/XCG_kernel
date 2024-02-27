@@ -204,7 +204,7 @@ struct cgroup_subsys_state {
 	struct rcu_work destroy_rwork;
 
 	
-	struct work_struct async_init_work;
+	// struct work_struct async_init_work;
 
 	/*
 	 * PI: the parent css.	Placed here for cache proximity to following
