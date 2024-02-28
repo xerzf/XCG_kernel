@@ -81,6 +81,29 @@ pids_css_alloc(struct cgroup_subsys_state *parent)
 	return &pids->css;
 }
 
+static struct cgroup_subsys_state *
+pids_css_async_alloc(struct cgroup_subsys_state *parent)
+{
+	// printk("pids async alloc.\n");
+	struct pids_cgroup *pids;
+
+	pids = kzalloc(sizeof(struct pids_cgroup), GFP_KERNEL);
+	if (!pids)
+		return ERR_PTR(-ENOMEM);
+
+	// atomic64_set(&pids->counter, 0);
+	// atomic64_set(&pids->limit, PIDS_MAX);
+	// atomic64_set(&pids->events_limit, 0);
+	return &pids->css;
+}
+
+static void pids_css_async_alloc_fn(struct cgroup_subsys_state *css) {
+	struct pids_cgroup *pids = (struct pids_cgroup *)css;
+	atomic64_set(&pids->counter, 0);
+	atomic64_set(&pids->limit, PIDS_MAX);
+	atomic64_set(&pids->events_limit, 0);
+}
+
 static void pids_css_free(struct cgroup_subsys_state *css)
 {
 	kfree(css_pids(css));
@@ -375,6 +398,8 @@ static struct cftype pids_files[] = {
 
 struct cgroup_subsys pids_cgrp_subsys = {
 	.css_alloc	= pids_css_alloc,
+	.css_async_alloc = pids_css_async_alloc, 
+	.async_alloc_fn = pids_css_async_alloc_fn, 
 	.css_free	= pids_css_free,
 	.can_attach 	= pids_can_attach,
 	.cancel_attach 	= pids_cancel_attach,

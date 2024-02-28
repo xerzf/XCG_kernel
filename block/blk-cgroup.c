@@ -1395,6 +1395,101 @@ unlock:
 	return ERR_PTR(-ENOMEM);
 }
 
+
+
+static struct cgroup_subsys_state *
+blkcg_css_async_alloc(struct cgroup_subsys_state *parent_css)
+{
+	struct blkcg *blkcg;
+	int i;
+	// printk("blkcg async alloc.\n");
+	mutex_lock(&blkcg_pol_mutex);
+
+	if (!parent_css) {
+		blkcg = &blkcg_root;
+	} else {
+		blkcg = kzalloc(sizeof(*blkcg), GFP_KERNEL);
+		if (!blkcg)
+			goto unlock;
+	}
+
+	if (init_blkcg_llists(blkcg))
+		goto free_blkcg;
+
+	// for (i = 0; i < BLKCG_MAX_POLS ; i++) {
+	// 	struct blkcg_policy *pol = blkcg_policy[i];
+	// 	struct blkcg_policy_data *cpd;
+
+	// 	/*
+	// 	 * If the policy hasn't been attached yet, wait for it
+	// 	 * to be attached before doing anything else. Otherwise,
+	// 	 * check if the policy requires any specific per-cgroup
+	// 	 * data: if it does, allocate and initialize it.
+	// 	 */
+	// 	if (!pol || !pol->cpd_alloc_fn)
+	// 		continue;
+
+	// 	cpd = pol->cpd_alloc_fn(GFP_KERNEL);
+	// 	if (!cpd)
+	// 		goto free_pd_blkcg;
+
+	// 	blkcg->cpd[i] = cpd;
+	// 	cpd->blkcg = blkcg;
+	// 	cpd->plid = i;
+	// }
+
+	spin_lock_init(&blkcg->lock);
+	refcount_set(&blkcg->online_pin, 1);
+	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_NOWAIT | __GFP_NOWARN);
+	INIT_HLIST_HEAD(&blkcg->blkg_list);
+#ifdef CONFIG_CGROUP_WRITEBACK
+	INIT_LIST_HEAD(&blkcg->cgwb_list);
+#endif
+	list_add_tail(&blkcg->all_blkcgs_node, &all_blkcgs);
+
+	mutex_unlock(&blkcg_pol_mutex);
+	return &blkcg->css;
+
+// free_pd_blkcg:
+// 	for (i--; i >= 0; i--)
+// 		if (blkcg->cpd[i])
+// 			blkcg_policy[i]->cpd_free_fn(blkcg->cpd[i]);
+// 	free_percpu(blkcg->lhead);
+free_blkcg:
+	if (blkcg != &blkcg_root)
+		kfree(blkcg);
+unlock:
+	mutex_unlock(&blkcg_pol_mutex);
+	return ERR_PTR(-ENOMEM);
+}
+
+static void blkcg_css_async_alloc_work_fn(struct cgroup_subsys_state *css) {
+	struct blkcg *blkcg = (struct blkcg *)css;
+	int i;
+	for (i = 0; i < BLKCG_MAX_POLS ; i++) {
+		struct blkcg_policy *pol = blkcg_policy[i];
+		struct blkcg_policy_data *cpd;
+
+		/*
+		 * If the policy hasn't been attached yet, wait for it
+		 * to be attached before doing anything else. Otherwise,
+		 * check if the policy requires any specific per-cgroup
+		 * data: if it does, allocate and initialize it.
+		 */
+		if (!pol || !pol->cpd_alloc_fn)
+			continue;
+
+		cpd = pol->cpd_alloc_fn(GFP_KERNEL);
+		if (!cpd)
+			panic("cpd alloc failed.\n");
+
+		blkcg->cpd[i] = cpd;
+		cpd->blkcg = blkcg;
+		cpd->plid = i;
+	}
+}
+
+
 static int blkcg_css_online(struct cgroup_subsys_state *css)
 {
 	struct blkcg *parent = blkcg_parent(css_to_blkcg(css));
@@ -1474,9 +1569,11 @@ static void blkcg_exit(struct task_struct *tsk)
 
 struct cgroup_subsys io_cgrp_subsys = {
 	.css_alloc = blkcg_css_alloc,
+	.css_async_alloc = blkcg_css_async_alloc, 
+	.async_alloc_fn = blkcg_css_async_alloc_work_fn,
 	.css_online = blkcg_css_online,
 	.css_offline = blkcg_css_offline,
-	.css_free = blkcg_css_free,
+	.css_free = blkcg_css_free,                                                                                                                                                          
 	.css_rstat_flush = blkcg_rstat_flush,
 	.dfl_cftypes = blkcg_files,
 	.legacy_cftypes = blkcg_legacy_files,

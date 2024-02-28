@@ -222,6 +222,7 @@ static struct cgroup_subsys_state *
 devcgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct dev_cgroup *dev_cgroup;
+	printk("dev_cgroup alloc.\n");
 
 	dev_cgroup = kzalloc(sizeof(*dev_cgroup), GFP_KERNEL);
 	if (!dev_cgroup)
