@@ -172,6 +172,74 @@ fail_alloc_nodeinfo:
 	return ERR_PTR(-ENOMEM);
 }
 
+static struct cgroup_subsys_state *
+hugetlb_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
+{
+	struct hugetlb_cgroup *parent_h_cgroup = hugetlb_cgroup_from_css(parent_css);
+	struct hugetlb_cgroup *h_cgroup;
+
+
+	h_cgroup = kzalloc(struct_size(h_cgroup, nodeinfo, nr_node_ids),
+			   GFP_KERNEL);
+
+	if (!h_cgroup)
+		return ERR_PTR(-ENOMEM);
+
+	if (!parent_h_cgroup)
+		root_h_cgroup = h_cgroup;
+
+	h_cgroup->parent = parent_h_cgroup;
+
+	// /*
+	//  * TODO: this routine can waste much memory for nodes which will
+	//  * never be onlined. It's better to use memory hotplug callback
+	//  * function.
+	//  */
+	// for_each_node(node) {
+	// 	/* Set node_to_alloc to NUMA_NO_NODE for offline nodes. */
+	// 	int node_to_alloc =
+	// 		node_state(node, N_NORMAL_MEMORY) ? node : NUMA_NO_NODE;
+	// 	h_cgroup->nodeinfo[node] =
+	// 		kzalloc_node(sizeof(struct hugetlb_cgroup_per_node),
+	// 			     GFP_KERNEL, node_to_alloc);
+	// 	if (!h_cgroup->nodeinfo[node])
+	// 		goto fail_alloc_nodeinfo;
+	// }
+
+	// hugetlb_cgroup_init(h_cgroup, parent_h_cgroup);
+	return &h_cgroup->css;
+
+// fail_alloc_nodeinfo:
+// 	hugetlb_cgroup_free(h_cgroup);
+// 	return ERR_PTR(-ENOMEM);
+}
+
+
+
+static void hugetlb_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css) {
+	// struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
+	struct hugetlb_cgroup *h_cgroup = (struct hugetlb_cgroup *)css;
+	int node;
+	struct hugetlb_cgroup *parent_h_cgroup = h_cgroup->parent;
+	/*
+	 * TODO: this routine can waste much memory for nodes which will
+	 * never be onlined. It's better to use memory hotplug callback
+	 * function.
+	 */
+	for_each_node(node) {
+		/* Set node_to_alloc to NUMA_NO_NODE for offline nodes. */
+		int node_to_alloc =
+			node_state(node, N_NORMAL_MEMORY) ? node : NUMA_NO_NODE;
+		h_cgroup->nodeinfo[node] =
+			kzalloc_node(sizeof(struct hugetlb_cgroup_per_node),
+				     GFP_KERNEL, node_to_alloc);
+		if (!h_cgroup->nodeinfo[node])
+			panic("kzalloc_node for h_cgroup failed.\n");
+	}
+
+	hugetlb_cgroup_init(h_cgroup, parent_h_cgroup);
+}
+
 static void hugetlb_cgroup_css_free(struct cgroup_subsys_state *css)
 {
 	hugetlb_cgroup_free(hugetlb_cgroup_from_css(css));
@@ -897,6 +965,8 @@ static struct cftype hugetlb_files[] = {
 
 struct cgroup_subsys hugetlb_cgrp_subsys = {
 	.css_alloc	= hugetlb_cgroup_css_alloc,
+	.css_async_alloc = hugetlb_cgroup_css_async_alloc,
+	.async_alloc_fn = hugetlb_cgroup_css_async_alloc_fn, 
 	.css_offline	= hugetlb_cgroup_css_offline,
 	.css_free	= hugetlb_cgroup_css_free,
 	.dfl_cftypes	= hugetlb_files,

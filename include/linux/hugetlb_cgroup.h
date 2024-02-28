@@ -35,6 +35,7 @@ struct hugetlb_cgroup_per_node {
 struct hugetlb_cgroup {
 	struct cgroup_subsys_state css;
 
+	struct hugetlb_cgroup *parent;
 	/*
 	 * the counter to account for hugepages from hugetlb.
 	 */
