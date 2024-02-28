@@ -5627,14 +5627,14 @@ static void async_alloc_ws_fn(struct cgroup_subsys_state *css) {
 	// list_add_tail_rcu(&css->sibling, &css->parent->children);
 	online_css_async_fn(css);
 }
-static void cgroup_async_create_fn(struct cgroup* cgrp);
+static void cgroup_async_create_fn(struct cgroup_subsys_state* css);
 static void cgroup_subsys_async_fn(struct work_struct *ws) {
 	struct cgroup* cgrp = container_of(ws, struct cgroup, alloc_async_work);
 	struct cgroup_subsys *ss;
 	struct cgroup_subsys_state *css;
 	int i;
 
-	cgroup_async_create_fn(cgrp);
+	cgroup_async_create_fn(&cgrp->self);
 	do_each_subsys_mask(ss, i, have_async_callback) {
 		css = cgrp->subsys[i];
 		if (css->is_async) {
@@ -5988,8 +5988,9 @@ out_free_cgrp:
 }
 
 static void
-cgroup_async_create_fn(struct cgroup* cgrp) {
+cgroup_async_create_fn(struct cgroup_subsys_state* css) {
 	int ret = 0;
+	struct cgroup* cgrp = container_of(css, struct cgroup, self);
 	ret = percpu_ref_init(&cgrp->self.refcnt, css_release, 0, GFP_KERNEL);
 	if (ret)
 		panic("percpu_ref_init fail.\n");
