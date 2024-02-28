@@ -54,6 +54,7 @@ static struct cpuacct root_cpuacct = {
 static struct cgroup_subsys_state *
 cpuacct_css_alloc(struct cgroup_subsys_state *parent_css)
 {
+	printk("cpuacct alloc.\n");
 	struct cpuacct *ca;
 
 	if (!parent_css)

@@ -5627,12 +5627,14 @@ static void async_alloc_ws_fn(struct cgroup_subsys_state *css) {
 	// list_add_tail_rcu(&css->sibling, &css->parent->children);
 	online_css_async_fn(css);
 }
-
+static void cgroup_async_create_fn(struct cgroup* cgrp);
 static void cgroup_subsys_async_fn(struct work_struct *ws) {
 	struct cgroup* cgrp = container_of(ws, struct cgroup, alloc_async_work);
 	struct cgroup_subsys *ss;
 	struct cgroup_subsys_state *css;
 	int i;
+
+	cgroup_async_create_fn(cgrp);
 	do_each_subsys_mask(ss, i, have_async_callback) {
 		css = cgrp->subsys[i];
 		if (css->is_async) {
@@ -5865,6 +5867,146 @@ out_free_cgrp:
 	return ERR_PTR(ret);
 }
 
+
+/*
+ * The returned cgroup is fully initialized including its control mask, but
+ * it doesn't have the control mask applied.
+ */
+static struct cgroup *cgroup_async_create(struct cgroup *parent, const char *name,
+				    umode_t mode)
+{
+	struct cgroup_root *root = parent->root;
+	struct cgroup *cgrp, *tcgrp;
+	struct kernfs_node *kn;
+	int level = parent->level + 1;
+	int ret;
+
+	/* allocate the cgroup and its ID, 0 is reserved for the root */
+	cgrp = kzalloc(struct_size(cgrp, ancestors, (level + 1)), GFP_KERNEL);
+	if (!cgrp)
+		return ERR_PTR(-ENOMEM);
+
+	// ret = percpu_ref_init(&cgrp->self.refcnt, css_release, 0, GFP_KERNEL);
+	// if (ret)
+	// 	goto out_free_cgrp;
+
+	// ret = cgroup_rstat_init(cgrp);
+	// if (ret)
+	// 	goto out_cancel_ref;
+
+	/* create the directory */
+	kn = kernfs_create_dir(parent->kn, name, mode, cgrp);
+	if (IS_ERR(kn)) {
+		ret = PTR_ERR(kn);
+		goto out_stat_exit;
+	}
+	cgrp->kn = kn;
+
+	init_cgroup_housekeeping(cgrp);
+
+	cgrp->self.parent = &parent->self;
+	cgrp->root = root;
+	cgrp->level = level;
+
+	// ret = psi_cgroup_alloc(cgrp);
+	// if (ret)
+	// 	goto out_kernfs_remove;
+
+	// ret = cgroup_bpf_inherit(cgrp);
+	// if (ret)
+	// 	goto out_psi_free;
+
+	/*
+	 * New cgroup inherits effective freeze counter, and
+	 * if the parent has to be frozen, the child has too.
+	 */
+	cgrp->freezer.e_freeze = parent->freezer.e_freeze;
+	if (cgrp->freezer.e_freeze) {
+		/*
+		 * Set the CGRP_FREEZE flag, so when a process will be
+		 * attached to the child cgroup, it will become frozen.
+		 * At this point the new cgroup is unpopulated, so we can
+		 * consider it frozen immediately.
+		 */
+		set_bit(CGRP_FREEZE, &cgrp->flags);
+		set_bit(CGRP_FROZEN, &cgrp->flags);
+	}
+
+	spin_lock_irq(&css_set_lock);
+	for (tcgrp = cgrp; tcgrp; tcgrp = cgroup_parent(tcgrp)) {
+		cgrp->ancestors[tcgrp->level] = tcgrp;
+
+		if (tcgrp != cgrp) {
+			tcgrp->nr_descendants++;
+
+			/*
+			 * If the new cgroup is frozen, all ancestor cgroups
+			 * get a new frozen descendant, but their state can't
+			 * change because of this.
+			 */
+			if (cgrp->freezer.e_freeze)
+				tcgrp->freezer.nr_frozen_descendants++;
+		}
+	}
+	spin_unlock_irq(&css_set_lock);
+
+	if (notify_on_release(parent))
+		set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
+
+	if (test_bit(CGRP_CPUSET_CLONE_CHILDREN, &parent->flags))
+		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &cgrp->flags);
+
+	cgrp->self.serial_nr = css_serial_nr_next++;
+
+	/* allocation complete, commit to creation */
+	list_add_tail_rcu(&cgrp->self.sibling, &cgroup_parent(cgrp)->self.children);
+	atomic_inc(&root->nr_cgrps);
+	cgroup_get_live(parent);
+
+	/*
+	 * On the default hierarchy, a child doesn't automatically inherit
+	 * subtree_control from the parent.  Each is configured manually.
+	 */
+	if (!cgroup_on_dfl(cgrp))
+		cgrp->subtree_control = cgroup_control(cgrp);
+
+	cgroup_propagate_control(cgrp);
+
+	return cgrp;
+
+out_psi_free:
+	psi_cgroup_free(cgrp);
+out_kernfs_remove:
+	kernfs_remove(cgrp->kn);
+out_stat_exit:
+	cgroup_rstat_exit(cgrp);
+out_cancel_ref:
+	percpu_ref_exit(&cgrp->self.refcnt);
+out_free_cgrp:
+	kfree(cgrp);
+	return ERR_PTR(ret);
+}
+
+static void
+cgroup_async_create_fn(struct cgroup* cgrp) {
+	int ret = 0;
+	ret = percpu_ref_init(&cgrp->self.refcnt, css_release, 0, GFP_KERNEL);
+	if (ret)
+		panic("percpu_ref_init fail.\n");
+
+	ret = cgroup_rstat_init(cgrp);
+	if (ret)
+		panic("cgroup_rstat_init fail.\n");
+
+	ret = psi_cgroup_alloc(cgrp);
+	if (ret)
+		panic("psi_cgroup_alloc fail.\n");
+
+	ret = cgroup_bpf_inherit(cgrp);
+	if (ret)
+		panic("cgroup_bpf_inherit fail.\n");
+}
+
 static bool cgroup_check_hierarchy_limits(struct cgroup *parent)
 {
 	struct cgroup *cgroup;
@@ -5961,7 +6103,7 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 		goto out_unlock;
 	}
 
-	cgrp = cgroup_create(parent, name, mode);
+	cgrp = cgroup_async_create(parent, name, mode);
 	if (IS_ERR(cgrp)) {
 		ret = PTR_ERR(cgrp);
 		goto out_unlock;
