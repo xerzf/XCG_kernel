@@ -5637,6 +5637,10 @@ static void cgroup_subsys_async_fn(struct work_struct *ws) {
 
 	cgroup_async_create_fn(&cgrp->self);
 	do_each_subsys_mask(ss, i, have_async_callback) {
+
+		if (!(cgroup_ss_mask(cgrp) & (1 << ss->id)))
+					continue;
+
 		css = cgrp->subsys[i];
 		if (css->is_async) {
 			async_alloc_ws_fn(css);
