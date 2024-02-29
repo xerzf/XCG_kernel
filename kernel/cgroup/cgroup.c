@@ -5914,13 +5914,13 @@ static struct cgroup *cgroup_async_create(struct cgroup *parent, const char *nam
 	cgrp->root = root;
 	cgrp->level = level;
 
-	ret = psi_cgroup_alloc(cgrp);
-	if (ret)
-		goto out_kernfs_remove;
+	// ret = psi_cgroup_alloc(cgrp);
+	// if (ret)
+	// 	goto out_kernfs_remove;
 
-	ret = cgroup_bpf_inherit(cgrp);
-	if (ret)
-		goto out_psi_free;
+	// ret = cgroup_bpf_inherit(cgrp);
+	// if (ret)
+	// 	goto out_psi_free;
 
 	/*
 	 * New cgroup inherits effective freeze counter, and
@@ -6007,13 +6007,13 @@ cgroup_async_create_fn(struct cgroup_subsys_state* css) {
 		panic("cgroup_rstat_init fail.\n");
 	// printk("cgroup_rstat_init return %d\n", ret);
 
-	// ret = psi_cgroup_alloc(cgrp);
-	// if (ret)
-	// 	panic("psi_cgroup_alloc fail.\n");
+	ret = psi_cgroup_alloc(cgrp);
+	if (ret)
+		panic("psi_cgroup_alloc fail.\n");
 	// printk("psi_cgroup_alloc return %d\n", ret);
-	// ret = cgroup_bpf_inherit(cgrp);
-	// if (ret)
-	// 	panic("cgroup_bpf_inherit fail.\n");
+	ret = cgroup_bpf_inherit(cgrp);
+	if (ret)
+		panic("cgroup_bpf_inherit fail.\n");
 	// printk("cgroup_bpf_inherit return %d\n", ret);
 }
 
