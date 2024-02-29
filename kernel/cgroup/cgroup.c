@@ -5995,18 +5995,20 @@ cgroup_async_create_fn(struct cgroup_subsys_state* css) {
 	ret = percpu_ref_init(&cgrp->self.refcnt, css_release, 0, GFP_KERNEL);
 	if (ret)
 		panic("percpu_ref_init fail.\n");
-
+	printk("percpu_ref_init return %d\n", ret);
 	ret = cgroup_rstat_init(cgrp);
 	if (ret)
 		panic("cgroup_rstat_init fail.\n");
+	printk("cgroup_rstat_init return %d\n", ret);
 
 	ret = psi_cgroup_alloc(cgrp);
 	if (ret)
 		panic("psi_cgroup_alloc fail.\n");
-
+	printk("psi_cgroup_alloc return %d\n", ret);
 	ret = cgroup_bpf_inherit(cgrp);
 	if (ret)
 		panic("cgroup_bpf_inherit fail.\n");
+	printk("cgroup_bpf_inherit return %d\n", ret);
 }
 
 static bool cgroup_check_hierarchy_limits(struct cgroup *parent)
