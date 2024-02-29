@@ -5628,20 +5628,21 @@ static void async_alloc_ws_fn(struct cgroup_subsys_state *css) {
 	online_css_async_fn(css);
 }
 static void cgroup_async_create_fn(struct cgroup_subsys_state* css);
+
 static void cgroup_subsys_async_fn(struct work_struct *ws) {
 	struct cgroup* cgrp = container_of(ws, struct cgroup, alloc_async_work);
 	struct cgroup_subsys *ss;
 	struct cgroup_subsys_state *css;
 	int i;
 
+	cgroup_async_create_fn(&cgrp->self);
 	do_each_subsys_mask(ss, i, have_async_callback) {
 		css = cgrp->subsys[i];
 		if (css->is_async) {
 			async_alloc_ws_fn(css);
 		}
 	} while_each_subsys_mask();
-	printk("done.\n");
-	cgroup_async_create_fn(&cgrp->self);
+	printk("done.\n");	
 }
 
 static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
@@ -5887,13 +5888,13 @@ static struct cgroup *cgroup_async_create(struct cgroup *parent, const char *nam
 	if (!cgrp)
 		return ERR_PTR(-ENOMEM);
 
-	// ret = percpu_ref_init(&cgrp->self.refcnt, css_release, 0, GFP_KERNEL);
-	// if (ret)
-	// 	goto out_free_cgrp;
+	ret = percpu_ref_init(&cgrp->self.refcnt, css_release, 0, GFP_KERNEL);
+	if (ret)
+		goto out_free_cgrp;
 
 	// ret = cgroup_rstat_init(cgrp);
 	// if (ret)
-	// 	goto out_cancel_ref;
+		// goto out_cancel_ref;
 
 	/* create the directory */
 	kn = kernfs_create_dir(parent->kn, name, mode, cgrp);
@@ -5909,13 +5910,13 @@ static struct cgroup *cgroup_async_create(struct cgroup *parent, const char *nam
 	cgrp->root = root;
 	cgrp->level = level;
 
-	// ret = psi_cgroup_alloc(cgrp);
-	// if (ret)
-	// 	goto out_kernfs_remove;
+	ret = psi_cgroup_alloc(cgrp);
+	if (ret)
+		goto out_kernfs_remove;
 
-	// ret = cgroup_bpf_inherit(cgrp);
-	// if (ret)
-	// 	goto out_psi_free;
+	ret = cgroup_bpf_inherit(cgrp);
+	if (ret)
+		goto out_psi_free;
 
 	/*
 	 * New cgroup inherits effective freeze counter, and
@@ -5992,24 +5993,24 @@ static void
 cgroup_async_create_fn(struct cgroup_subsys_state* css) {
 	int ret = 0;
 	struct cgroup* cgrp = css->cgroup;
-	printk("cgroup address %d\n", cgrp);
-	ret = percpu_ref_init(&cgrp->self.refcnt, css_release, 0, GFP_KERNEL);
-	if (ret)
-		panic("percpu_ref_init fail.\n");
-	printk("percpu_ref_init return %d\n", ret);
+	// printk("cgroup address %d\n", cgrp);
+	// ret = percpu_ref_init(&cgrp->self.refcnt, css_release, 0, GFP_KERNEL);
+	// if (ret)
+	// 	panic("percpu_ref_init fail.\n");
+	// printk("percpu_ref_init return %d\n", ret);
 	ret = cgroup_rstat_init(cgrp);
 	if (ret)
 		panic("cgroup_rstat_init fail.\n");
 	printk("cgroup_rstat_init return %d\n", ret);
 
-	ret = psi_cgroup_alloc(cgrp);
-	if (ret)
-		panic("psi_cgroup_alloc fail.\n");
-	printk("psi_cgroup_alloc return %d\n", ret);
-	ret = cgroup_bpf_inherit(cgrp);
-	if (ret)
-		panic("cgroup_bpf_inherit fail.\n");
-	printk("cgroup_bpf_inherit return %d\n", ret);
+	// ret = psi_cgroup_alloc(cgrp);
+	// if (ret)
+	// 	panic("psi_cgroup_alloc fail.\n");
+	// printk("psi_cgroup_alloc return %d\n", ret);
+	// ret = cgroup_bpf_inherit(cgrp);
+	// if (ret)
+	// 	panic("cgroup_bpf_inherit fail.\n");
+	// printk("cgroup_bpf_inherit return %d\n", ret);
 }
 
 static bool cgroup_check_hierarchy_limits(struct cgroup *parent)
