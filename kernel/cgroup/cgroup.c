@@ -5641,6 +5641,7 @@ static void cgroup_subsys_async_fn(struct work_struct *ws) {
 			async_alloc_ws_fn(css);
 		}
 	} while_each_subsys_mask();
+	printk("done.\n");
 }
 
 static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
