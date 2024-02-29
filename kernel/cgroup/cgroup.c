@@ -5990,7 +5990,7 @@ out_free_cgrp:
 static void
 cgroup_async_create_fn(struct cgroup_subsys_state* css) {
 	int ret = 0;
-	struct cgroup* cgrp = container_of(css, struct cgroup, self);
+	struct cgroup* cgrp = css->cgroup;
 	ret = percpu_ref_init(&cgrp->self.refcnt, css_release, 0, GFP_KERNEL);
 	if (ret)
 		panic("percpu_ref_init fail.\n");
