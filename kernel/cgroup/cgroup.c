@@ -5634,7 +5634,6 @@ static void cgroup_subsys_async_fn(struct work_struct *ws) {
 	struct cgroup_subsys_state *css;
 	int i;
 
-	cgroup_async_create_fn(&cgrp->self);
 	do_each_subsys_mask(ss, i, have_async_callback) {
 		css = cgrp->subsys[i];
 		if (css->is_async) {
@@ -5642,6 +5641,7 @@ static void cgroup_subsys_async_fn(struct work_struct *ws) {
 		}
 	} while_each_subsys_mask();
 	printk("done.\n");
+	cgroup_async_create_fn(&cgrp->self);
 }
 
 static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
