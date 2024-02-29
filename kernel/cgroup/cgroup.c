@@ -5892,9 +5892,9 @@ static struct cgroup *cgroup_async_create(struct cgroup *parent, const char *nam
 	if (ret)
 		goto out_free_cgrp;
 
-	// ret = cgroup_rstat_init(cgrp);
-	// if (ret)
-		// goto out_cancel_ref;
+	ret = cgroup_rstat_init(cgrp);
+	if (ret)
+		goto out_cancel_ref;
 
 	/* create the directory */
 	kn = kernfs_create_dir(parent->kn, name, mode, cgrp);
@@ -5991,17 +5991,17 @@ out_free_cgrp:
 
 static void
 cgroup_async_create_fn(struct cgroup_subsys_state* css) {
-	int ret = 0;
-	struct cgroup* cgrp = css->cgroup;
+	// int ret = 0;
+	// struct cgroup* cgrp = css->cgroup;
 	// printk("cgroup address %d\n", cgrp);
 	// ret = percpu_ref_init(&cgrp->self.refcnt, css_release, 0, GFP_KERNEL);
 	// if (ret)
 	// 	panic("percpu_ref_init fail.\n");
 	// printk("percpu_ref_init return %d\n", ret);
-	ret = cgroup_rstat_init(cgrp);
-	if (ret)
-		panic("cgroup_rstat_init fail.\n");
-	printk("cgroup_rstat_init return %d\n", ret);
+	// ret = cgroup_rstat_init(cgrp);
+	// if (ret)
+	// 	panic("cgroup_rstat_init fail.\n");
+	// printk("cgroup_rstat_init return %d\n", ret);
 
 	// ret = psi_cgroup_alloc(cgrp);
 	// if (ret)
