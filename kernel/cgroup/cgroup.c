@@ -3274,8 +3274,8 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp, bool async)
 				}
 			}
 		}
-		INIT_WORK(&cgrp->alloc_async_work, cgroup_subsys_async_fn);
-		queue_work(subsys_init_wq, &cgrp->alloc_async_work);
+		// INIT_WORK(&cgrp->alloc_async_work, cgroup_subsys_async_fn);
+		// queue_work(subsys_init_wq, &cgrp->alloc_async_work);
 	} else {
 		cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp) {
 			for_each_subsys(ss, ssid) {
@@ -5682,7 +5682,7 @@ static void cgroup_subsys_async_fn(struct work_struct *ws) {
 			async_alloc_ws_fn(css);
 		}
 	} while_each_subsys_mask();
-	printk("done.\n");	
+	// printk("done.\n");	
 }
 
 static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
@@ -6178,13 +6178,13 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 	if (ret)
 		goto out_destroy;
 	
-	ktime_t start = ktime_get();
+	// ktime_t start = ktime_get();
 	ret = cgroup_apply_control_enable(cgrp, true);
 	if (ret) {
 		goto out_destroy;
 	}
-	ktime_t end = ktime_get();
-	printk("cgroup_apply_control_enable use time %d.\n", ktime_to_ns(ktime_sub(end, start)));
+	// ktime_t end = ktime_get();
+	// printk("cgroup_apply_control_enable use time %d.\n", ktime_to_ns(ktime_sub(end, start)));
 		
 
 	TRACE_CGROUP_PATH(mkdir, cgrp);
@@ -6199,19 +6199,21 @@ out_destroy:
 	cgroup_destroy_locked(cgrp);
 out_unlock:
 	cgroup_kn_unlock(parent_kn);
+
+	cgroup_subsys_async_fn(&cgrp->alloc_async_work);
 	return ret;
 }
 
 int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
 {
 	int ret;
-	ktime_t start = ktime_get();
+	// ktime_t start = ktime_get();
 	if (strncmp(name, "bb-ctr", 6) == 0) 
 		ret = cgroup_mkdir_async(parent_kn, name, mode);
 	else 
 	 ret = cgroup_mkdir_sync(parent_kn, name, mode);
-	ktime_t end = ktime_get();
-	printk("mkdir use time %d.\n", ktime_to_ns(ktime_sub(end, start)));
+	// ktime_t end = ktime_get();
+	// printk("mkdir use time %d.\n", ktime_to_ns(ktime_sub(end, start)));
 	return ret;
 }
 
@@ -6865,11 +6867,11 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 		goto err;
 	}
 
-	if (dst_cgrp->aflags) {
-		cgroup_unlock();
-		flush_work(&dst_cgrp->alloc_async_work);
-		cgroup_lock();
-	}
+	// if (dst_cgrp->aflags) {
+	// 	cgroup_unlock();
+	// 	flush_work(&dst_cgrp->alloc_async_work);
+	// 	cgroup_lock();
+	// }
 
 	// struct cgroup_subsys *ss;
 	// struct cgroup_subsys_state *css;
