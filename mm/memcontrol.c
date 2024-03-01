@@ -5632,38 +5632,38 @@ mem_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
 
 	memcg->parent = parent;
 
-	page_counter_set_high(&memcg->memory, PAGE_COUNTER_MAX);
-	WRITE_ONCE(memcg->soft_limit, PAGE_COUNTER_MAX);
-#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_ZSWAP)
-	memcg->zswap_max = PAGE_COUNTER_MAX;
-#endif
-	page_counter_set_high(&memcg->swap, PAGE_COUNTER_MAX);
-	if (parent) {
-		WRITE_ONCE(memcg->swappiness, mem_cgroup_swappiness(parent));
-		WRITE_ONCE(memcg->oom_kill_disable, READ_ONCE(parent->oom_kill_disable));
+// 	page_counter_set_high(&memcg->memory, PAGE_COUNTER_MAX);
+// 	WRITE_ONCE(memcg->soft_limit, PAGE_COUNTER_MAX);
+// #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_ZSWAP)
+// 	memcg->zswap_max = PAGE_COUNTER_MAX;
+// #endif
+// 	page_counter_set_high(&memcg->swap, PAGE_COUNTER_MAX);
+// 	if (parent) {
+// 		WRITE_ONCE(memcg->swappiness, mem_cgroup_swappiness(parent));
+// 		WRITE_ONCE(memcg->oom_kill_disable, READ_ONCE(parent->oom_kill_disable));
 
-		page_counter_init(&memcg->memory, &parent->memory);
-		page_counter_init(&memcg->swap, &parent->swap);
-		page_counter_init(&memcg->kmem, &parent->kmem);
-		page_counter_init(&memcg->tcpmem, &parent->tcpmem);
-	} else {
-		init_memcg_events();
-		page_counter_init(&memcg->memory, NULL);
-		page_counter_init(&memcg->swap, NULL);
-		page_counter_init(&memcg->kmem, NULL);
-		page_counter_init(&memcg->tcpmem, NULL);
+// 		page_counter_init(&memcg->memory, &parent->memory);
+// 		page_counter_init(&memcg->swap, &parent->swap);
+// 		page_counter_init(&memcg->kmem, &parent->kmem);
+// 		page_counter_init(&memcg->tcpmem, &parent->tcpmem);
+// 	} else {
+// 		init_memcg_events();
+// 		page_counter_init(&memcg->memory, NULL);
+// 		page_counter_init(&memcg->swap, NULL);
+// 		page_counter_init(&memcg->kmem, NULL);
+// 		page_counter_init(&memcg->tcpmem, NULL);
 
-		root_mem_cgroup = memcg;
-		return &memcg->css;
-	}
+// 		root_mem_cgroup = memcg;
+// 		return &memcg->css;
+// 	}
 
-	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
-		static_branch_inc(&memcg_sockets_enabled_key);
+// 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
+// 		static_branch_inc(&memcg_sockets_enabled_key);
 
-#if defined(CONFIG_MEMCG_KMEM)
-	if (!cgroup_memory_nobpf)
-		static_branch_inc(&memcg_bpf_enabled_key);
-#endif
+// #if defined(CONFIG_MEMCG_KMEM)
+// 	if (!cgroup_memory_nobpf)
+// 		static_branch_inc(&memcg_bpf_enabled_key);
+// #endif
 
 	return &memcg->css;
 }
@@ -5689,6 +5689,41 @@ static void mem_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css) {
 
 
 	set_active_memcg(old_memcg);
+
+
+
+	page_counter_set_high(&memcg->memory, PAGE_COUNTER_MAX);
+	WRITE_ONCE(memcg->soft_limit, PAGE_COUNTER_MAX);
+#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_ZSWAP)
+	memcg->zswap_max = PAGE_COUNTER_MAX;
+#endif
+	page_counter_set_high(&memcg->swap, PAGE_COUNTER_MAX);
+	// if (parent) {
+		WRITE_ONCE(memcg->swappiness, mem_cgroup_swappiness(parent));
+		WRITE_ONCE(memcg->oom_kill_disable, READ_ONCE(parent->oom_kill_disable));
+
+		page_counter_init(&memcg->memory, &parent->memory);
+		page_counter_init(&memcg->swap, &parent->swap);
+		page_counter_init(&memcg->kmem, &parent->kmem);
+		page_counter_init(&memcg->tcpmem, &parent->tcpmem);
+	// } else {
+	// 	init_memcg_events();
+	// 	page_counter_init(&memcg->memory, NULL);
+	// 	page_counter_init(&memcg->swap, NULL);
+	// 	page_counter_init(&memcg->kmem, NULL);
+	// 	page_counter_init(&memcg->tcpmem, NULL);
+
+	// 	root_mem_cgroup = memcg;
+	// 	// return &memcg->css;
+	// }
+
+	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
+		static_branch_inc(&memcg_sockets_enabled_key);
+
+#if defined(CONFIG_MEMCG_KMEM)
+	if (!cgroup_memory_nobpf)
+		static_branch_inc(&memcg_bpf_enabled_key);
+#endif
 
 }
 
