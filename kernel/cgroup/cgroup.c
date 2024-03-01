@@ -1050,7 +1050,7 @@ static bool compare_css_sets(struct css_set *cset,
 
 /**
  * find_existing_css_set - init css array and find the matching css_set
- * @old_cset: the css_set that we're using before the cgroup transition
+ * @old_cset: the css_set that we're using before the   transition
  * @cgrp: the cgroup that we're moving into
  * @template: out param for the new set of csses, should be clear on entry
  */
@@ -4777,9 +4777,9 @@ css_leftmost_descendant(struct cgroup_subsys_state *pos)
  * A css which hasn't finished ->css_online() or already finished
  * ->css_offline() may show up during traversal.  It's each subsystem's
  * responsibility to synchronize against on/offlining.
- */
+ */  // 后续遍历cgroup的迭代
 struct cgroup_subsys_state *
-css_next_descendant_post(struct cgroup_subsys_state *pos,
+css_next_descendant_post(struct cgroup_subsys_state *pos,  
 			 struct cgroup_subsys_state *root)
 {
 	struct cgroup_subsys_state *next;
@@ -6177,11 +6177,14 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 	ret = css_populate_dir(&cgrp->self);
 	if (ret)
 		goto out_destroy;
-
+	
+	ktime_t start = ktime_get();
 	ret = cgroup_apply_control_enable(cgrp, true);
 	if (ret) {
 		goto out_destroy;
 	}
+	ktime_t end = ktime_get();
+	printk("cgroup_apply_control_enable use time %d.\n", ktime_to_ns(ktime_sub(end, start)));
 		
 
 	TRACE_CGROUP_PATH(mkdir, cgrp);
@@ -6202,13 +6205,13 @@ out_unlock:
 int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
 {
 	int ret;
-	// ktime_t start = ktime_get();
+	ktime_t start = ktime_get();
 	if (strncmp(name, "bb-ctr", 6) == 0) 
 		ret = cgroup_mkdir_async(parent_kn, name, mode);
 	else 
 	 ret = cgroup_mkdir_sync(parent_kn, name, mode);
-	// ktime_t end = ktime_get();
-	// printk("mkdir use time %d.\n", ktime_to_ns(ktime_sub(end, start)));
+	ktime_t end = ktime_get();
+	printk("mkdir use time %d.\n", ktime_to_ns(ktime_sub(end, start)));
 	return ret;
 }
 
