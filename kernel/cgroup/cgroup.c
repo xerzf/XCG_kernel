@@ -3274,8 +3274,7 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp, bool async)
 				}
 			}
 		}
-		// INIT_WORK(&cgrp->alloc_async_work, cgroup_subsys_async_fn);
-		// queue_work(subsys_init_wq, &cgrp->alloc_async_work);
+		queue_work(subsys_init_wq, &cgrp->alloc_async_work);
 	} else {
 		cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp) {
 			for_each_subsys(ss, ssid) {
@@ -6148,6 +6147,7 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 	if (!parent)
 		return -ENODEV;
 	cgrp = kzalloc(struct_size(cgrp, ancestors, (parent->level + 2)), GFP_KERNEL);
+	INIT_WORK(&cgrp->alloc_async_work, cgroup_subsys_async_fn);
 	parent = cgroup_kn_get_done(parent_kn, parent, false);
 	if (!parent)
 		return -ENODEV;
@@ -6199,8 +6199,6 @@ out_destroy:
 	cgroup_destroy_locked(cgrp);
 out_unlock:
 	cgroup_kn_unlock(parent_kn);
-
-	cgroup_subsys_async_fn(&cgrp->alloc_async_work);
 	return ret;
 }
 
@@ -6867,11 +6865,11 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 		goto err;
 	}
 
-	// if (dst_cgrp->aflags) {
-	// 	cgroup_unlock();
-	// 	flush_work(&dst_cgrp->alloc_async_work);
-	// 	cgroup_lock();
-	// }
+	if (dst_cgrp->aflags) {
+		cgroup_unlock();
+		flush_work(&dst_cgrp->alloc_async_work);
+		cgroup_lock();
+	}
 
 	// struct cgroup_subsys *ss;
 	// struct cgroup_subsys_state *css;
