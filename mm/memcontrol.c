@@ -5533,33 +5533,33 @@ static struct mem_cgroup *mem_cgroup_async_alloc(void)
 	// 	if (alloc_mem_cgroup_per_node_info(memcg, node))
 	// 		goto fail;
 
-	if (memcg_wb_domain_init(memcg, GFP_KERNEL))
-		goto fail;
+// 	if (memcg_wb_domain_init(memcg, GFP_KERNEL))
+// 		goto fail;
 
-	INIT_WORK(&memcg->high_work, high_work_func);
-	INIT_LIST_HEAD(&memcg->oom_notify);
-	mutex_init(&memcg->thresholds_lock);
-	spin_lock_init(&memcg->move_lock);
-	vmpressure_init(&memcg->vmpressure);
-	INIT_LIST_HEAD(&memcg->event_list);
-	spin_lock_init(&memcg->event_list_lock);
-	memcg->socket_pressure = jiffies;
-#ifdef CONFIG_MEMCG_KMEM
-	memcg->kmemcg_id = -1;
-	INIT_LIST_HEAD(&memcg->objcg_list);
-#endif
-#ifdef CONFIG_CGROUP_WRITEBACK
-	INIT_LIST_HEAD(&memcg->cgwb_list);
-	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++)
-		memcg->cgwb_frn[i].done =
-			__WB_COMPLETION_INIT(&memcg_cgwb_frn_waitq);
-#endif
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	spin_lock_init(&memcg->deferred_split_queue.split_queue_lock);
-	INIT_LIST_HEAD(&memcg->deferred_split_queue.split_queue);
-	memcg->deferred_split_queue.split_queue_len = 0;
-#endif
-	lru_gen_init_memcg(memcg);
+// 	INIT_WORK(&memcg->high_work, high_work_func);
+// 	INIT_LIST_HEAD(&memcg->oom_notify);
+// 	mutex_init(&memcg->thresholds_lock);
+// 	spin_lock_init(&memcg->move_lock);
+// 	vmpressure_init(&memcg->vmpressure);
+// 	INIT_LIST_HEAD(&memcg->event_list);
+// 	spin_lock_init(&memcg->event_list_lock);
+// 	memcg->socket_pressure = jiffies;
+// #ifdef CONFIG_MEMCG_KMEM
+// 	memcg->kmemcg_id = -1;
+// 	INIT_LIST_HEAD(&memcg->objcg_list);
+// #endif
+// #ifdef CONFIG_CGROUP_WRITEBACK
+// 	INIT_LIST_HEAD(&memcg->cgwb_list);
+// 	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++)
+// 		memcg->cgwb_frn[i].done =
+// 			__WB_COMPLETION_INIT(&memcg_cgwb_frn_waitq);
+// #endif
+// #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+// 	spin_lock_init(&memcg->deferred_split_queue.split_queue_lock);
+// 	INIT_LIST_HEAD(&memcg->deferred_split_queue.split_queue);
+// 	memcg->deferred_split_queue.split_queue_len = 0;
+// #endif
+// 	lru_gen_init_memcg(memcg);
 	return memcg;
 fail:
 	mem_cgroup_id_remove(memcg);
@@ -5686,6 +5686,35 @@ static void mem_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css) {
 	for_each_node(node)
 		if (alloc_mem_cgroup_per_node_info(memcg, node))
 			panic("alloc_mem_cgroup_per_node_info failed.\n");
+
+
+	if (memcg_wb_domain_init(memcg, GFP_KERNEL))
+		panic("memcg_wb_domain_init failed.\n");
+
+	INIT_WORK(&memcg->high_work, high_work_func);
+	INIT_LIST_HEAD(&memcg->oom_notify);
+	mutex_init(&memcg->thresholds_lock);
+	spin_lock_init(&memcg->move_lock);
+	vmpressure_init(&memcg->vmpressure);
+	INIT_LIST_HEAD(&memcg->event_list);
+	spin_lock_init(&memcg->event_list_lock);
+	memcg->socket_pressure = jiffies;
+#ifdef CONFIG_MEMCG_KMEM
+	memcg->kmemcg_id = -1;
+	INIT_LIST_HEAD(&memcg->objcg_list);
+#endif
+#ifdef CONFIG_CGROUP_WRITEBACK
+	INIT_LIST_HEAD(&memcg->cgwb_list);
+	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++)
+		memcg->cgwb_frn[i].done =
+			__WB_COMPLETION_INIT(&memcg_cgwb_frn_waitq);
+#endif
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	spin_lock_init(&memcg->deferred_split_queue.split_queue_lock);
+	INIT_LIST_HEAD(&memcg->deferred_split_queue.split_queue);
+	memcg->deferred_split_queue.split_queue_len = 0;
+#endif
+	lru_gen_init_memcg(memcg);
 
 
 	set_active_memcg(old_memcg);
