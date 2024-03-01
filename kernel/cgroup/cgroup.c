@@ -1663,6 +1663,42 @@ struct cgroup *cgroup_kn_lock_live(struct kernfs_node *kn, bool drain_offline)
 	return NULL;
 }
 
+struct cgroup *cgroup_kn_try_get(struct kernfs_node *kn)
+{
+	struct cgroup *cgrp;
+
+	if (kernfs_type(kn) == KERNFS_DIR)
+		cgrp = kn->priv;
+	else
+		cgrp = kn->parent->priv;
+
+	/*
+	 * We're gonna grab cgroup_mutex which nests outside kernfs
+	 * active_ref.  cgroup liveliness check alone provides enough
+	 * protection against removal.  Ensure @cgrp stays accessible and
+	 * break the active_ref protection.
+	 */
+	if (!cgroup_tryget(cgrp))
+		return NULL;
+
+	return cgrp;
+}
+struct cgroup *cgroup_kn_get_done(struct kernfs_node *kn, struct cgroup* cgrp, bool drain_offline)
+{
+	kernfs_break_active_protection(kn);
+
+	if (drain_offline)
+		cgroup_lock_and_drain_offline(cgrp);
+	else
+		cgroup_lock();
+
+	if (!cgroup_is_dead(cgrp))
+		return cgrp;
+
+	cgroup_kn_unlock(kn);
+	return NULL;
+}
+
 static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 {
 	char name[CGROUP_FILE_NAME_MAX];
@@ -5878,17 +5914,17 @@ out_free_cgrp:
  * The returned cgroup is fully initialized including its control mask, but
  * it doesn't have the control mask applied.
  */
-static struct cgroup *cgroup_async_create(struct cgroup *parent, const char *name,
+static struct cgroup *cgroup_async_create(struct cgroup *parent, struct cgroup* cgrp, const char *name,
 				    umode_t mode)
 {
 	struct cgroup_root *root = parent->root;
-	struct cgroup *cgrp, *tcgrp;
+	struct cgroup *tcgrp;
 	struct kernfs_node *kn;
 	int level = parent->level + 1;
 	int ret;
 
 	/* allocate the cgroup and its ID, 0 is reserved for the root */
-	cgrp = kzalloc(struct_size(cgrp, ancestors, (level + 1)), GFP_KERNEL);
+	// cgrp = kzalloc(struct_size(cgrp, ancestors, (level + 1)), GFP_KERNEL);
 	if (!cgrp)
 		return ERR_PTR(-ENOMEM);
 
@@ -5980,14 +6016,14 @@ static struct cgroup *cgroup_async_create(struct cgroup *parent, const char *nam
 
 	return cgrp;
 
-out_psi_free:
-	psi_cgroup_free(cgrp);
-out_kernfs_remove:
+// out_psi_free:
+	// psi_cgroup_free(cgrp);
+// out_kernfs_remove:
 	kernfs_remove(cgrp->kn);
 out_stat_exit:
-	cgroup_rstat_exit(cgrp);
-out_cancel_ref:
-	percpu_ref_exit(&cgrp->self.refcnt);
+	// cgroup_rstat_exit(cgrp);
+// out_cancel_ref:
+	// percpu_ref_exit(&cgrp->self.refcnt);
 out_free_cgrp:
 	kfree(cgrp);
 	return ERR_PTR(ret);
@@ -6104,7 +6140,15 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 	if (strchr(name, '\n'))
 		return -EINVAL;
 
-	parent = cgroup_kn_lock_live(parent_kn, false);
+	// parent = cgroup_kn_lock_live(parent_kn, false);
+	// if (!parent)
+	// 	return -ENODEV;
+
+	parent = cgroup_kn_try_get(parent_kn);
+	if (!parent)
+		return -ENODEV;
+	cgrp = kzalloc(struct_size(cgrp, ancestors, (parent->level + 2)), GFP_KERNEL);
+	parent = cgroup_kn_get_done(parent_kn, parent, false);
 	if (!parent)
 		return -ENODEV;
 
@@ -6113,7 +6157,7 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 		goto out_unlock;
 	}
 
-	cgrp = cgroup_async_create(parent, name, mode);
+	cgrp = cgroup_async_create(parent, cgrp, name, mode);
 	if (IS_ERR(cgrp)) {
 		ret = PTR_ERR(cgrp);
 		goto out_unlock;
@@ -6157,9 +6201,15 @@ out_unlock:
 
 int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
 {
+	int ret;
+	// ktime_t start = ktime_get();
 	if (strncmp(name, "bb-ctr", 6) == 0) 
-		return cgroup_mkdir_async(parent_kn, name, mode);
-	return cgroup_mkdir_sync(parent_kn, name, mode);
+		ret = cgroup_mkdir_async(parent_kn, name, mode);
+	else 
+	 ret = cgroup_mkdir_sync(parent_kn, name, mode);
+	// ktime_t end = ktime_get();
+	// printk("mkdir use time %d.\n", ktime_to_ns(ktime_sub(end, start)));
+	return ret;
 }
 
 /*
