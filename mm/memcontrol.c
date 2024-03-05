@@ -5505,7 +5505,6 @@ fail:
 static struct mem_cgroup *mem_cgroup_async_alloc(void)
 {
 	struct mem_cgroup *memcg;
-	int node;
 	int __maybe_unused i;
 	long error = -ENOMEM;
 

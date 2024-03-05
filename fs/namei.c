@@ -2915,6 +2915,134 @@ int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 }
 EXPORT_SYMBOL(user_path_at_empty);
 
+
+struct filename *
+getname_flags_ib(const char *filename, int flags, int *empty)
+{
+	struct filename *result;
+	char *kname;
+	int len;
+
+	result = audit_reusename(filename);
+	if (result)
+		return result;
+	result = __getname();
+	if (unlikely(!result))
+	{
+		// printk("bpf_obj_get_ib is fail here 0-1-0\n");
+		return ERR_PTR(-ENOMEM);
+	}		
+	kname = (char *)result->iname;
+	result->name = kname;
+
+	len = strncpy_from_kernel_nofault(kname, filename, EMBEDDED_NAME_MAX);
+	// printk("getname_flags_ib: len is %d, kname is %s\n",len,kname);
+	if (unlikely(len < 0)) {
+		printk("strncpy_from_kernel_nofault: Error\n");
+		__putname(result);
+		return ERR_PTR(len);
+	}
+
+	/*
+	 * Uh-oh. We have a name that's approaching PATH_MAX. Allocate a
+	 * separate struct filename so we can dedicate the entire
+	 * names_cache allocation for the pathname, and re-do the copy from
+	 * userland.
+	 */
+	if (unlikely(len == EMBEDDED_NAME_MAX)) {
+		const size_t size = offsetof(struct filename, iname[1]);
+		kname = (char *)result;
+
+		/*
+		 * size is chosen that way we to guarantee that
+		 * result->iname[0] is within the same object and that
+		 * kname can't be equal to result->iname, no matter what.
+		 */
+		result = kzalloc(size, GFP_KERNEL);
+		if (unlikely(!result)) {
+			// printk("bpf_obj_get_ib is fail here 0-1-3\n");
+			__putname(kname);
+			return ERR_PTR(-ENOMEM);
+		}
+		
+		result->name = kname;
+		len = strncpy_from_kernel_nofault(kname, filename, PATH_MAX);
+		if (unlikely(len < 0)) {
+			// printk("bpf_obj_get_ib is fail here 0-1-4\n");
+			__putname(kname);
+			kfree(result);
+			return ERR_PTR(len);
+		}
+		if (unlikely(len == PATH_MAX)) {
+			// printk("bpf_obj_get_ib is fail here 0-1-5\n");
+			__putname(kname);
+			kfree(result);
+			return ERR_PTR(-ENAMETOOLONG);
+		}
+	}
+
+	// result->refcnt = 1;
+	atomic_set(&result->refcnt, 1);
+	/* The empty path is special. */
+	if (unlikely(!len)) {
+		if (empty)
+			*empty = 1;
+		if (!(flags & LOOKUP_EMPTY)) {
+			// printk("bpf_obj_get_ib is fail here 0-1-6\n");
+			putname(result);
+			return ERR_PTR(-ENOENT);
+		}
+	}
+	result->uptr = filename;
+	result->aname = NULL;
+	audit_getname(result);
+	return result;
+}
+
+
+int filename_lookup_ib(int dfd, struct filename *name, unsigned flags,
+		    struct path *path, struct path *root)
+{
+	int retval;
+	struct nameidata nd;
+	if (IS_ERR(name))
+	{
+
+		return PTR_ERR(name);
+	}
+	set_nameidata(&nd, dfd, name, root);
+	retval = path_lookupat(&nd, flags | LOOKUP_RCU, path);
+	if (unlikely(retval == -ECHILD))
+	{
+		// printk("bpf_obj_get_ib is fail here 0-1-8\n");
+		retval = path_lookupat(&nd, flags, path);
+	}
+		
+	if (unlikely(retval == -ESTALE))
+	{
+		// printk("bpf_obj_get_ib is fail here 0-1-8\n");
+		retval = path_lookupat(&nd, flags | LOOKUP_REVAL, path);
+	}
+	if (likely(!retval))
+		audit_inode(name, path->dentry,
+			    flags & LOOKUP_MOUNTPOINT ? AUDIT_INODE_NOEVAL : 0);
+	restore_nameidata();
+	return retval;
+}
+
+int user_path_at_empty_ib(int dfd, const char *name, unsigned flags,
+		 struct path *path, int *empty)
+{
+	
+	struct filename *filename = getname_flags_ib(name, flags, empty);
+	// printk("bpf_obj_get ok 4!\n");
+	int ret = filename_lookup_ib(dfd, filename, flags, path, NULL);
+
+	putname(filename);
+	return ret;
+}
+EXPORT_SYMBOL(user_path_at_empty_ib);
+
 int __check_sticky(struct mnt_idmap *idmap, struct inode *dir,
 		   struct inode *inode)
 {

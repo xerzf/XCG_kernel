@@ -57,6 +57,14 @@ static inline int user_path_at(int dfd, const char __user *name, unsigned flags,
 	return user_path_at_empty(dfd, name, flags, path, NULL);
 }
 
+extern int user_path_at_empty_ib(int, const char *, unsigned, struct path *, int *empty);
+
+static inline int user_path_at_ib(int dfd, const char *name, unsigned flags,
+		 struct path *path)
+{
+	return user_path_at_empty_ib(dfd, name, flags, path, NULL);
+}
+
 struct dentry *lookup_one_qstr_excl(const struct qstr *name,
 				    struct dentry *base,
 				    unsigned int flags);
