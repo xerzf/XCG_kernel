@@ -18,7 +18,7 @@
 struct {
     __uint(type, BPF_MAP_TYPE_HASH); 
     __type(key, char*);             
-    __type(value, u64);      
+    __type(value, char*);      
     __uint(max_entries, 4096);     
 } cpu_max_map SEC(".maps");
 
@@ -54,14 +54,14 @@ struct {
 struct {
     __uint(type, BPF_MAP_TYPE_HASH); 
     __type(key, char*);             
-    __type(value, char*);      
+    __type(value, u64);      
     __uint(max_entries, 4096);     
 } hugetlb_2MB_limit_map SEC(".maps");
 
 struct {
     __uint(type, BPF_MAP_TYPE_HASH); 
     __type(key, char*);             
-    __type(value, char*);      
+    __type(value, u64);      
     __uint(max_entries, 4096);     
 } pids_limit_map SEC(".maps");
 
