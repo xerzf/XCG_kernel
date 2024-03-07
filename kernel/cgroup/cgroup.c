@@ -6246,7 +6246,7 @@ int load_resource(const char *name) {
 	void* cgrp_mask;
 	char *tmp_buf;
 	printk("load resources for %s\n",name);
-	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, cgrp_mask)) {
+	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, cgrp_mask) <= 0) {
 		return -1;
 	}
 	if (cgrp_mask != NULL) {
