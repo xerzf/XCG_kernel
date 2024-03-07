@@ -6227,6 +6227,7 @@ int lookup_map_value(struct bpf_map** map, const char* map_name, const char* key
 				return map_fd;
 		} else {
 			bpf_map = bpf_map_get(map_fd);
+			printk("bpf_fd %d\n", map_fd);
 			if (IS_ERR(bpf_map))
 			{
 				printk("bpf get error \n");
@@ -6237,9 +6238,11 @@ int lookup_map_value(struct bpf_map** map, const char* map_name, const char* key
 	}
 	value = (void *) (*map)->ops->map_lookup_elem(*map, key); //用目录名作为key值，我们需要避免重复的name
 	if (value != NULL) {
+		printk("value exist, delete elem for %s\n", map_name);
 		(*map)->ops->map_delete_elem(*map, key); // 把对应的pid删除掉
+		return map_fd;
 	}
-	return map_fd;
+	
 }
 
 int load_resource(const char *name) {
