@@ -6242,7 +6242,7 @@ int lookup_map_value(struct bpf_map** map, const char* map_name, const char* key
 		(*map)->ops->map_delete_elem(*map, key); // 把对应的pid删除掉
 		return map_fd;
 	}
-	
+	return 0;
 }
 
 int load_resource(const char *name) {
