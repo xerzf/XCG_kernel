@@ -70,7 +70,7 @@ struct {
     __type(key, char*);             
     __type(value, int);      
     __uint(max_entries, 4096);     
-} cgroup_mask_map SEC(".maps");
+} cgrp_mask_map SEC(".maps");
 
 
 
