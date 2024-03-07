@@ -6254,10 +6254,10 @@ int load_resource(const char *name) {
 	}
 	if (cgrp_mask != NULL) {
 		printk("cgrp_mask value for %s is %d\n",name, *(int *)cgrp_mask);
-		// lookup_map_value(&cpu_max_map, "cpu_max_map", name, tmp_buf);
-		// printk("cpu_max_map value for %s is %s\n",name, tmp_buf);
-		// lookup_map_value(&cpu_sets_map, "cpu_sets_map", name, tmp_buf);
-		// printk("cpu_sets_map value for %s is %s\n",name, tmp_buf);
+		lookup_map_value(&cpu_max_map, "cpu_max_map", name, tmp_buf);
+		printk("cpu_max_map value for %s is %s\n",name, tmp_buf);
+		lookup_map_value(&cpu_sets_map, "cpu_sets_map", name, tmp_buf);
+		printk("cpu_sets_map value for %s is %s\n",name, tmp_buf);
 		// lookup_map_value(&cpu_idle_map, "cpu_idle_map", name, tmp_buf);
 		// printk("cpu_idle_map value for %s is %s\n",name, tmp_buf);
 		// lookup_map_value(&memory_limit_map, "memory_limit_map", name, tmp_buf);
