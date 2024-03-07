@@ -400,6 +400,16 @@ struct cgroup_freezer_state {
 	int nr_frozen_tasks;
 };
 
+struct subsys_resource {
+	char memory_limits[32];
+	char memory_reservation[32];
+	char pids_limits[32];
+	char cpu_cpusets[32];
+	char idle_present[32];
+	char cpu_max[32];
+	char hugetlb_2MB_limit_map[32];
+};
+
 struct cgroup {
 	/* self css with NULL ->ss, points back to this cgroup */
 	struct cgroup_subsys_state self;
@@ -407,6 +417,7 @@ struct cgroup {
 	unsigned long flags;		/* "unsigned long" so bitops work */
 
 	unsigned long aflags;
+	struct subsys_resource *resources;
 	/*
 	 * The depth this cgroup is at.  The root is at depth zero and each
 	 * step down the hierarchy increments the level.  This along with

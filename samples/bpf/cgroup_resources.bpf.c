@@ -63,13 +63,6 @@ struct {
     __type(key, char*);             
     __type(value, char*);      
     __uint(max_entries, 4096);     
-} hugetlb_limit_map SEC(".maps");
-
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH); 
-    __type(key, char*);             
-    __type(value, char*);      
-    __uint(max_entries, 4096);     
 } pids_limit_map SEC(".maps");
 
 struct {

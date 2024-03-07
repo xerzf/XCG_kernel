@@ -128,6 +128,18 @@ static struct workqueue_struct *cgroup_destroy_wq;
 
 static struct workqueue_struct *subsys_init_wq;
 
+struct bpf_map *cgrp_mask_map;
+struct bpf_map *cpu_max_map;
+struct bpf_map *cpu_sets_map;
+struct bpf_map *cpu_idle_map;
+struct bpf_map *memory_limit_map;
+struct bpf_map *memory_reservation_map;
+struct bpf_map *hugetlb_2MB_limit_map;
+struct bpf_map *pids_limit_map;
+// struct bpf_map *cgroup_mask_map;
+// struct bpf_map *cgroup_mask_map;
+// struct bpf_map *cgroup_mask_map;
+// struct bpf_map *cgroup_mask_map;
 
 /* generate an array of cgroup subsystem pointers */
 #define SUBSYS(_x) [_x ## _cgrp_id] = &_x ## _cgrp_subsys,
@@ -6202,12 +6214,70 @@ out_unlock:
 	return ret;
 }
 
+int lookup_map_value(struct bpf_map** map, const char* map_name, const char* key, void *value) {
+	int map_fd ;
+	char pathname[32];
+	struct bpf_map *bpf_map;
+	if (IS_ERR_OR_NULL(*map)) {
+		snprintf(pathname, 32, "/sys/fs/bpf/%s", map_name);
+		map_fd = bpf_obj_get_ib(pathname);
+		if (map_fd<0)
+		{
+			printk("map_fd get error \n");
+				return map_fd;
+		} else {
+			bpf_map = bpf_map_get(map_fd);
+			if (IS_ERR(bpf_map))
+			{
+				printk("bpf get error \n");
+				return -2;
+			}
+			*map = bpf_map;
+		}	
+	}
+	value = (void *) (*map)->ops->map_lookup_elem(*map, key); //用目录名作为key值，我们需要避免重复的name
+	if (value != NULL) {
+		(*map)->ops->map_delete_elem(*map, key); // 把对应的pid删除掉
+	}
+	return map_fd;
+}
+
+int load_resource(const char *name) {
+	void* cgrp_mask;
+	char *tmp_buf;
+	printk("load resources for %s\n",name);
+	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, cgrp_mask)) {
+		return -1;
+	}
+	if (cgrp_mask != NULL) {
+		printk("cgrp_mask value for %s is %d\n",name, *(int *)cgrp_mask);
+		lookup_map_value(&cpu_max_map, "cpu_max_map", name, tmp_buf);
+		printk("cpu_max_map value for %s is %s\n",name, tmp_buf);
+		lookup_map_value(&cpu_sets_map, "cpu_sets_map", name, tmp_buf);
+		printk("cpu_sets_map value for %s is %s\n",name, tmp_buf);
+		lookup_map_value(&cpu_idle_map, "cpu_idle_map", name, tmp_buf);
+		printk("cpu_idle_map value for %s is %s\n",name, tmp_buf);
+		lookup_map_value(&memory_limit_map, "memory_limit_map", name, tmp_buf);
+		printk("memory_limit_map value for %s is %s\n",name, tmp_buf);
+		lookup_map_value(&memory_reservation_map, "memory_reservation_map", name, tmp_buf);
+		printk("memory_reservation_map value for %s is %s\n",name, tmp_buf);
+		lookup_map_value(&hugetlb_2MB_limit_map, "hugetlb_2MB_limit_map", name, tmp_buf);
+		printk("hugetlb_2MB_limit_map value for %s is %s\n",name, tmp_buf);
+		lookup_map_value(&pids_limit_map, "pids_limit_map", name, tmp_buf);
+		printk("pids_limit_map value for %s is %s\n",name, tmp_buf);
+	}
+	return 0;
+}
+
 int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
 {
 	int ret;
 	// ktime_t start = ktime_get();
 	if (strncmp(name, "bb-ctr", 6) == 0) 
+	{
+		load_resource(name);
 		ret = cgroup_mkdir_async(parent_kn, name, mode);
+	}
 	else 
 	 ret = cgroup_mkdir_sync(parent_kn, name, mode);
 	// ktime_t end = ktime_get();
