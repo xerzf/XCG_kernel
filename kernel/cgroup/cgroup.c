@@ -6161,14 +6161,11 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 	if (!parent)
 		return -ENODEV;
 	cgrp = kzalloc(struct_size(cgrp, ancestors, (parent->level + 2)), GFP_KERNEL);
-	// cgrp->resources = res;
+	cgrp->resources = res;
 	
 	parent = cgroup_kn_get_done(parent_kn, parent, false);
 	if (!parent)
 		return -ENODEV;
-
-	struct subsys_resource* res2 = load_resource(name);
-	cgrp->resources = res2;
 
 	if (!cgroup_check_hierarchy_limits(parent)) {
 		ret = -EAGAIN;
@@ -6224,7 +6221,7 @@ int lookup_map_value(struct bpf_map** map, const char* map_name, const char* key
 	int map_fd ;
 	char pathname[32];
 	struct bpf_map *bpf_map;
-	if (IS_ERR_OR_NULL(*map)) {
+	// if (IS_ERR_OR_NULL(*map)) {
 		snprintf(pathname, 32, "/sys/fs/bpf/%s", map_name);
 		map_fd = bpf_obj_get_ib(pathname);
 		if (map_fd<0)
@@ -6241,7 +6238,7 @@ int lookup_map_value(struct bpf_map** map, const char* map_name, const char* key
 			}
 			*map = bpf_map;
 		}	
-	}
+	// }
 	*value = (void *) (*map)->ops->map_lookup_elem(*map, key); //用目录名作为key值，我们需要避免重复的name
 	return 0;
 }
@@ -6314,11 +6311,11 @@ int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
 	// ktime_t start = ktime_get();
 	if (strncmp(name, "bb-ctr", 6) == 0) 
 	{
-		// struct subsys_resource* res = load_resource(name);
-		// if (!IS_ERR_OR_NULL(res)) {
-		// 	printk("res->pids_limits = %d, res->hugetlb_2MB_limit_map = %d, res->memory_limits = %d, res->idle_present = %d,",res->pids_limits, res->hugetlb_2MB_limit,res->memory_limits, res->idle_present);
-		// 	printk("res->cpu_cpusets = %s, res->cpu_max = %s, res->memory_reservation = %d\n", res->cpu_cpusets, res->cpu_max , res->memory_reservation);
-		// }
+		struct subsys_resource* res = load_resource(name);
+		if (!IS_ERR_OR_NULL(res)) {
+			printk("res->pids_limits = %d, res->hugetlb_2MB_limit_map = %d, res->memory_limits = %d, res->idle_present = %d,",res->pids_limits, res->hugetlb_2MB_limit,res->memory_limits, res->idle_present);
+			printk("res->cpu_cpusets = %s, res->cpu_max = %s, res->memory_reservation = %d\n", res->cpu_cpusets, res->cpu_max , res->memory_reservation);
+		}
 		ret = cgroup_mkdir_async(parent_kn, name, mode, NULL);
 	}
 	else 
