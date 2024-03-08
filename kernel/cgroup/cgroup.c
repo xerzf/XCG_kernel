@@ -6144,7 +6144,7 @@ out_unlock:
 	cgroup_kn_unlock(parent_kn);
 	return ret;
 }
-
+struct subsys_resource* load_resource(const char *name);
 static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, umode_t mode, struct subsys_resource* res) {
 	struct cgroup *parent, *cgrp;
 	int ret;
@@ -6161,11 +6161,14 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 	if (!parent)
 		return -ENODEV;
 	cgrp = kzalloc(struct_size(cgrp, ancestors, (parent->level + 2)), GFP_KERNEL);
-	cgrp->resources = res;
+	// cgrp->resources = res;
 	
 	parent = cgroup_kn_get_done(parent_kn, parent, false);
 	if (!parent)
 		return -ENODEV;
+
+	struct subsys_resource* res2 = load_resource(name);
+	cgrp->resources = res2;
 
 	if (!cgroup_check_hierarchy_limits(parent)) {
 		ret = -EAGAIN;
@@ -6311,12 +6314,12 @@ int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
 	// ktime_t start = ktime_get();
 	if (strncmp(name, "bb-ctr", 6) == 0) 
 	{
-		struct subsys_resource* res = load_resource(name);
-		if (!IS_ERR_OR_NULL(res)) {
-			printk("res->pids_limits = %d, res->hugetlb_2MB_limit_map = %d, res->memory_limits = %d, res->idle_present = %d,",res->pids_limits, res->hugetlb_2MB_limit,res->memory_limits, res->idle_present);
-			printk("res->cpu_cpusets = %s, res->cpu_max = %s, res->memory_reservation = %d\n", res->cpu_cpusets, res->cpu_max , res->memory_reservation);
-		}
-		ret = cgroup_mkdir_async(parent_kn, name, mode, res);
+		// struct subsys_resource* res = load_resource(name);
+		// if (!IS_ERR_OR_NULL(res)) {
+		// 	printk("res->pids_limits = %d, res->hugetlb_2MB_limit_map = %d, res->memory_limits = %d, res->idle_present = %d,",res->pids_limits, res->hugetlb_2MB_limit,res->memory_limits, res->idle_present);
+		// 	printk("res->cpu_cpusets = %s, res->cpu_max = %s, res->memory_reservation = %d\n", res->cpu_cpusets, res->cpu_max , res->memory_reservation);
+		// }
+		ret = cgroup_mkdir_async(parent_kn, name, mode, NULL);
 	}
 	else 
 	 ret = cgroup_mkdir_sync(parent_kn, name, mode);
