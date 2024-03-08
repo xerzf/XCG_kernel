@@ -401,13 +401,16 @@ struct cgroup_freezer_state {
 };
 
 struct subsys_resource {
-	char memory_limits[32];
-	char memory_reservation[32];
-	char pids_limits[32];
-	char cpu_cpusets[32];
-	char idle_present[32];
+	u64 memory_limits;
+	u64 memory_reservation;
+	u64 pids_limits;
+	
+	u64 idle_present;
+	
+	u64 hugetlb_2MB_limit;
+
 	char cpu_max[32];
-	char hugetlb_2MB_limit_map[32];
+	char cpu_cpusets[32];
 };
 
 struct cgroup {
@@ -717,7 +720,7 @@ struct cgroup_subsys {
 	int (*can_fork)(struct task_struct *task,
 			struct css_set *cset);
 	struct cgroup_subsys_state *(*css_async_alloc)(struct cgroup_subsys_state *parent_css);
-	void (*async_alloc_fn)(struct cgroup_subsys_state *css);
+	void (*async_alloc_fn)(struct cgroup_subsys_state *css, struct subsys_resource* res);
 	void (*flush_async_work)(struct cgroup_subsys_state* css);
 	void (*cancel_fork)(struct task_struct *task, struct css_set *cset);
 	void (*fork)(struct task_struct *task);

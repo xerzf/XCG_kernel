@@ -3231,7 +3231,7 @@ static bool css_visible(struct cgroup_subsys_state *css)
 	return cgroup_on_dfl(cgrp) && ss->implicit_on_dfl;
 }
 
-static void async_alloc_ws_fn(struct cgroup_subsys_state *css);
+static void async_alloc_ws_fn(struct cgroup_subsys_state *css, struct subsys_resource* res);
 static void cgroup_subsys_async_fn(struct work_struct *ws);
 
 /**
@@ -3286,6 +3286,7 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp, bool async)
 				}
 			}
 		}
+		INIT_WORK(&cgrp->alloc_async_work, cgroup_subsys_async_fn);
 		queue_work(subsys_init_wq, &cgrp->alloc_async_work);
 	} else {
 		cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp) {
@@ -5667,9 +5668,9 @@ static void offline_css(struct cgroup_subsys_state *css)
 	wake_up_all(&css->cgroup->offline_waitq);
 }
 
-static void async_alloc_ws_fn(struct cgroup_subsys_state *css) {
+static void async_alloc_ws_fn(struct cgroup_subsys_state *css, struct subsys_resource* res) {
 	// struct cgroup_subsys_state *css = container_of(ws, struct cgroup_subsys_state, async_init_work);
-	css->ss->async_alloc_fn(css);
+	css->ss->async_alloc_fn(css, res);
 	// printk("access async alloc subsystem\n");
 	// list_add_tail_rcu(&css->sibling, &css->parent->children);
 	online_css_async_fn(css);
@@ -5690,7 +5691,7 @@ static void cgroup_subsys_async_fn(struct work_struct *ws) {
 
 		css = cgrp->subsys[i];
 		if (css->is_async) {
-			async_alloc_ws_fn(css);
+			async_alloc_ws_fn(css, cgrp->resources);
 		}
 	} while_each_subsys_mask();
 	// printk("done.\n");	
@@ -6143,7 +6144,7 @@ out_unlock:
 	return ret;
 }
 
-static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, umode_t mode) {
+static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, umode_t mode, struct subsys_resource* res) {
 	struct cgroup *parent, *cgrp;
 	int ret;
 
@@ -6159,7 +6160,8 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 	if (!parent)
 		return -ENODEV;
 	cgrp = kzalloc(struct_size(cgrp, ancestors, (parent->level + 2)), GFP_KERNEL);
-	INIT_WORK(&cgrp->alloc_async_work, cgroup_subsys_async_fn);
+	cgrp->resources = res;
+	
 	parent = cgroup_kn_get_done(parent_kn, parent, false);
 	if (!parent)
 		return -ENODEV;
@@ -6246,49 +6248,58 @@ int delete_map_value(struct bpf_map* map, const char* key)
 	return 0;
 }
 
-int load_resource(const char *name) {
+struct subsys_resource* load_resource(const char *name) {
 	void *cgrp_mask;
 	void *tmp_buf;
 	void *tmp_value;
+	
 	printk("load resources for %s\n",name);
 	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, &cgrp_mask) < 0) {
-		return -1;
+		return NULL;
 	}
+	struct subsys_resource* res = kzalloc(sizeof(struct subsys_resource), GFP_KERNEL);
 	if (!IS_ERR_OR_NULL(cgrp_mask)) {
 		printk("cgrp_mask value for %s is %lld\n",name, *(uint64_t *)cgrp_mask);
 		delete_map_value(cgrp_mask_map, name);
 		
 		lookup_map_value(&memory_reservation_map, "memory_reser_map", name, &tmp_value);
 		printk("memory_reser_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
+		res->memory_reservation = *(uint64_t *)tmp_value;
 		delete_map_value(memory_reservation_map, name);
 
 		lookup_map_value(&cpu_max_map, "cpu_max_map", name, &tmp_buf);
+		snprintf(res->cpu_max, sizeof((char *)tmp_buf), (char *)tmp_buf);
 		printk("cpu_max_map value for %s is %s\n",name, (char *)tmp_buf);
 		delete_map_value(cpu_max_map, name);
 
 		lookup_map_value(&cpu_sets_map, "cpu_sets_map", name, &tmp_buf);
+		snprintf(res->cpu_cpusets, sizeof((char *)tmp_buf), (char *)tmp_buf);
 		printk("cpu_sets_map value for %s is %s\n",name, (char *)tmp_buf);
 		delete_map_value(cpu_sets_map, name);
 
 		lookup_map_value(&cpu_idle_map, "cpu_idle_map", name, &tmp_value);
+		res->idle_present = *(uint64_t *)tmp_value;
 		printk("cpu_idle_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
 		delete_map_value(cpu_idle_map, name);
 
 		lookup_map_value(&memory_limit_map, "memory_limit_map", name, &tmp_value);
+		res->memory_limits = *(uint64_t *)tmp_value;
 		printk("memory_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
 		delete_map_value(memory_limit_map, name);
 
 		
 
 		lookup_map_value(&hugetlb_2MB_limit_map, "hugetlb_2MB_map", name, &tmp_value);
+		res->hugetlb_2MB_limit = *(uint64_t *)tmp_value;
 		printk("hugetlb_2MB_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
 		delete_map_value(hugetlb_2MB_limit_map, name);
 
 		lookup_map_value(&pids_limit_map, "pids_limit_map", name, &tmp_value);
+		res->pids_limits = *(uint64_t *)tmp_value;
 		printk("pids_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
 		delete_map_value(pids_limit_map, name);
 	}
-	return 0;
+	return res;
 }
 
 int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
@@ -6297,8 +6308,12 @@ int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
 	// ktime_t start = ktime_get();
 	if (strncmp(name, "bb-ctr", 6) == 0) 
 	{
-		load_resource(name);
-		ret = cgroup_mkdir_async(parent_kn, name, mode);
+		struct subsys_resource* res = load_resource(name);
+		if (!IS_ERR_OR_NULL(res)) {
+			printk("res->pids_limits = %d, res->hugetlb_2MB_limit_map = %d, res->memory_limits = %d, res->idle_present = %d,",res->pids_limits, res->hugetlb_2MB_limit,res->memory_limits, res->idle_present);
+			printk("res->cpu_cpusets = %s, res->cpu_max = %s, res->memory_reservation = %d\n", res->cpu_cpusets, res->cpu_max , res->memory_reservation);
+		}
+		ret = cgroup_mkdir_async(parent_kn, name, mode, res);
 	}
 	else 
 	 ret = cgroup_mkdir_sync(parent_kn, name, mode);

@@ -97,7 +97,7 @@ pids_css_async_alloc(struct cgroup_subsys_state *parent)
 	return &pids->css;
 }
 
-static void pids_css_async_alloc_fn(struct cgroup_subsys_state *css) {
+static void pids_css_async_alloc_fn(struct cgroup_subsys_state *css, struct subsys_resource* res) {
 	struct pids_cgroup *pids = (struct pids_cgroup *)css;
 	atomic64_set(&pids->counter, 0);
 	atomic64_set(&pids->limit, PIDS_MAX);

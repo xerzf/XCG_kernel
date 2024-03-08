@@ -3956,7 +3956,7 @@ cpuset_css_async_alloc(struct cgroup_subsys_state *parent_css)
 }
 
 static void 
-cpuset_css_async_alloc_work_fn(struct cgroup_subsys_state *css)
+cpuset_css_async_alloc_work_fn(struct cgroup_subsys_state *css, struct subsys_resource* res)
 {
 	// struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
 	struct cpuset *cs = css_cs(css);

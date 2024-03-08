@@ -216,7 +216,7 @@ hugetlb_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
 
 
 
-static void hugetlb_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css) {
+static void hugetlb_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css, struct subsys_resource* res) {
 	// struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
 	struct hugetlb_cgroup *h_cgroup = (struct hugetlb_cgroup *)css;
 	int node;
