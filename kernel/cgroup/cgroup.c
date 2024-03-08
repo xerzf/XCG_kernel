@@ -88,6 +88,7 @@
  * cgroup.h can use them for lockdep annotations.
  */
 DEFINE_MUTEX(cgroup_mutex);
+DEFINE_MUTEX(bpf_map_mutex);
 DEFINE_SPINLOCK(css_set_lock);
 
 #ifdef CONFIG_PROVE_RCU
@@ -6254,6 +6255,7 @@ struct subsys_resource* load_resource(const char *name) {
 	void *tmp_value;
 	
 	printk("load resources for %s\n",name);
+	mutex_lock(&bpf_map_mutex);
 	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, &cgrp_mask) < 0) {
 		return NULL;
 	}
@@ -6299,6 +6301,7 @@ struct subsys_resource* load_resource(const char *name) {
 		printk("pids_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
 		delete_map_value(pids_limit_map, name);
 	}
+	mutex_unlock(&bpf_map_mutex);
 	return res;
 }
 
