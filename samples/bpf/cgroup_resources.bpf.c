@@ -56,7 +56,7 @@ struct {
     __type(key, char*);             
     __type(value, u64);      
     __uint(max_entries, 4096);     
-} hugetlb_2MB_limit_map SEC(".maps");
+} hugetlb_2MB_map SEC(".maps");
 
 struct {
     __uint(type, BPF_MAP_TYPE_HASH); 
