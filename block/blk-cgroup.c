@@ -1463,7 +1463,7 @@ unlock:
 	return ERR_PTR(-ENOMEM);
 }
 
-static void blkcg_css_async_alloc_work_fn(struct cgroup_subsys_state *css) {
+static void blkcg_css_async_alloc_work_fn(struct cgroup_subsys_state *css, struct subsys_resource *res) {
 	struct blkcg *blkcg = (struct blkcg *)css;
 	int i;
 	for (i = 0; i < BLKCG_MAX_POLS ; i++) {
