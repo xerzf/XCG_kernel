@@ -18,7 +18,7 @@
 struct {
     __uint(type, BPF_MAP_TYPE_HASH); 
     __type(key, char*);             
-    __type(value, char*);      
+    __type(value, char[8]);      
     __uint(max_entries, 4096);     
 } cpu_max_map SEC(".maps");
 
