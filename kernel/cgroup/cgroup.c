@@ -6237,6 +6237,7 @@ int lookup_map_value(struct bpf_map** map, const char* map_name, const char* key
 		}	
 	}
 	value = (void *) (*map)->ops->map_lookup_elem(*map, key); //用目录名作为key值，我们需要避免重复的name
+	printk("here4\n");
 	return 0;
 }
 
@@ -6252,9 +6253,11 @@ int load_resource(const char *name) {
 	uint64_t *tmp_value;
 	printk("load resources for %s\n",name);
 	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, cgrp_mask) < 0) {
+		printk("here1\n");
 		return -1;
 	}
-	if (cgrp_mask != NULL) {
+	printk("here2\n");
+	if (!IS_ERR_OR_NULL(cgrp_mask)) {
 		printk("cgrp_mask value for %s is %lld\n",name, *(int *)cgrp_mask);
 		delete_map_value(cgrp_mask_map, name);
 
@@ -6286,6 +6289,7 @@ int load_resource(const char *name) {
 		// printk("pids_limit_map value for %s is %d\n",name, tmp_value);
 		// delete_map_value(pids_limit_map, name);
 	}
+	printk("here3\n");
 	return 0;
 }
 
