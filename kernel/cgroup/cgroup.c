@@ -6237,37 +6237,54 @@ int lookup_map_value(struct bpf_map** map, const char* map_name, const char* key
 		}	
 	}
 	value = (void *) (*map)->ops->map_lookup_elem(*map, key); //用目录名作为key值，我们需要避免重复的name
-	if (value != NULL) {
-		printk("value exist, delete elem for %s\n", map_name);
-		(*map)->ops->map_delete_elem(*map, key); // 把对应的pid删除掉
-		return map_fd;
-	}
+	return 0;
+}
+
+int delete_map_value(struct bpf_map* map, const char* key)
+{
+	map->ops->map_delete_elem(map, key); // 把对应的pid删除掉
 	return 0;
 }
 
 int load_resource(const char *name) {
 	void* cgrp_mask;
 	char *tmp_buf;
+	uint64_t *tmp_value;
 	printk("load resources for %s\n",name);
 	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, cgrp_mask) <= 0) {
 		return -1;
 	}
 	if (cgrp_mask != NULL) {
 		printk("cgrp_mask value for %s is %d\n",name, *(int *)cgrp_mask);
+		delete_map_value(cgrp_mask_map, name);
+
 		lookup_map_value(&cpu_max_map, "cpu_max_map", name, tmp_buf);
 		printk("cpu_max_map value for %s is %s\n",name, tmp_buf);
+		delete_map_value(cpu_max_map, name);
+
 		lookup_map_value(&cpu_sets_map, "cpu_sets_map", name, tmp_buf);
 		printk("cpu_sets_map value for %s is %s\n",name, tmp_buf);
-		// lookup_map_value(&cpu_idle_map, "cpu_idle_map", name, tmp_buf);
-		// printk("cpu_idle_map value for %s is %s\n",name, tmp_buf);
-		// lookup_map_value(&memory_limit_map, "memory_limit_map", name, tmp_buf);
-		// printk("memory_limit_map value for %s is %s\n",name, tmp_buf);
-		// lookup_map_value(&memory_reservation_map, "memory_reservation_map", name, tmp_buf);
-		// printk("memory_reservation_map value for %s is %s\n",name, tmp_buf);
-		// lookup_map_value(&hugetlb_2MB_limit_map, "hugetlb_2MB_limit_map", name, tmp_buf);
-		// printk("hugetlb_2MB_limit_map value for %s is %s\n",name, tmp_buf);
-		// lookup_map_value(&pids_limit_map, "pids_limit_map", name, tmp_buf);
-		// printk("pids_limit_map value for %s is %s\n",name, tmp_buf);
+		delete_map_value(cpu_sets_map, name);
+
+		lookup_map_value(&cpu_idle_map, "cpu_idle_map", name, tmp_value);
+		printk("cpu_idle_map value for %s is %d\n",name, tmp_value);
+		delete_map_value(cpu_idle_map, name);
+
+		lookup_map_value(&memory_limit_map, "memory_limit_map", name, tmp_value);
+		printk("memory_limit_map value for %s is %d\n",name, tmp_value);
+		delete_map_value(memory_limit_map, name);
+
+		lookup_map_value(&memory_reservation_map, "memory_reservation_map", name, tmp_value);
+		printk("memory_reservation_map value for %s is %d\n",name, tmp_value);
+		delete_map_value(memory_reservation_map, name);
+
+		lookup_map_value(&hugetlb_2MB_limit_map, "hugetlb_2MB_limit_map", name, tmp_value);
+		printk("hugetlb_2MB_limit_map value for %s is %d\n",name, tmp_value);
+		delete_map_value(hugetlb_2MB_limit_map, name);
+
+		lookup_map_value(&pids_limit_map, "pids_limit_map", name, tmp_value);
+		printk("pids_limit_map value for %s is %d\n",name, tmp_value);
+		delete_map_value(pids_limit_map, name);
 	}
 	return 0;
 }
