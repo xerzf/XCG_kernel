@@ -6280,7 +6280,7 @@ int load_resource(const char *name) {
 
 		
 
-		lookup_map_value(&hugetlb_2MB_limit_map, "hugetlb_2MB_limit_map", name, &tmp_value);
+		lookup_map_value(&hugetlb_2MB_limit_map, "hugetlb_2MB_map", name, &tmp_value);
 		printk("hugetlb_2MB_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
 		delete_map_value(hugetlb_2MB_limit_map, name);
 
