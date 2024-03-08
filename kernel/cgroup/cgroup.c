@@ -6248,8 +6248,8 @@ int delete_map_value(struct bpf_map* map, const char* key)
 }
 
 int load_resource(const char *name) {
-	uint64_t* cgrp_mask;
-	char *tmp_buf;
+	void *cgrp_mask;
+	void *tmp_buf;
 	uint64_t *tmp_value;
 	printk("load resources for %s\n",name);
 	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, &cgrp_mask) < 0) {
@@ -6262,7 +6262,7 @@ int load_resource(const char *name) {
 		delete_map_value(cgrp_mask_map, name);
 
 		lookup_map_value(&cpu_max_map, "cpu_max_map", name, &tmp_buf);
-		printk("cpu_max_map value for %s is %s\n",name, tmp_buf);
+		printk("cpu_max_map value for %s is %s\n",name, (char *)tmp_buf);
 		delete_map_value(cpu_max_map, name);
 
 		// lookup_map_value(&cpu_sets_map, "cpu_sets_map", name, tmp_buf);
