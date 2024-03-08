@@ -6262,44 +6262,44 @@ struct subsys_resource* load_resource(const char *name) {
 	struct subsys_resource* res = kzalloc(sizeof(struct subsys_resource), GFP_KERNEL);
 	if (!IS_ERR_OR_NULL(cgrp_mask)) {
 		printk("cgrp_mask value for %s is %lld\n",name, *(uint64_t *)cgrp_mask);
-		delete_map_value(cgrp_mask_map, name);
+		// delete_map_value(cgrp_mask_map, name);
 		
 		lookup_map_value(&memory_reservation_map, "memory_reser_map", name, &tmp_value);
 		printk("memory_reser_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
 		res->memory_reservation = *(uint64_t *)tmp_value;
-		delete_map_value(memory_reservation_map, name);
+		// delete_map_value(memory_reservation_map, name);
 
 		lookup_map_value(&cpu_max_map, "cpu_max_map", name, &tmp_buf);
 		snprintf(res->cpu_max, sizeof((char *)tmp_buf), (char *)tmp_buf);
 		printk("cpu_max_map value for %s is %s\n",name, (char *)tmp_buf);
-		delete_map_value(cpu_max_map, name);
+		// delete_map_value(cpu_max_map, name);
 
 		lookup_map_value(&cpu_sets_map, "cpu_sets_map", name, &tmp_buf);
 		snprintf(res->cpu_cpusets, sizeof((char *)tmp_buf), (char *)tmp_buf);
 		printk("cpu_sets_map value for %s is %s\n",name, (char *)tmp_buf);
-		delete_map_value(cpu_sets_map, name);
+		// delete_map_value(cpu_sets_map, name);
 
 		lookup_map_value(&cpu_idle_map, "cpu_idle_map", name, &tmp_value);
 		res->idle_present = *(uint64_t *)tmp_value;
 		printk("cpu_idle_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
-		delete_map_value(cpu_idle_map, name);
+		// delete_map_value(cpu_idle_map, name);
 
 		lookup_map_value(&memory_limit_map, "memory_limit_map", name, &tmp_value);
 		res->memory_limits = *(uint64_t *)tmp_value;
 		printk("memory_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
-		delete_map_value(memory_limit_map, name);
+		// delete_map_value(memory_limit_map, name);
 
 		
 
 		lookup_map_value(&hugetlb_2MB_limit_map, "hugetlb_2MB_map", name, &tmp_value);
 		res->hugetlb_2MB_limit = *(uint64_t *)tmp_value;
 		printk("hugetlb_2MB_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
-		delete_map_value(hugetlb_2MB_limit_map, name);
+		// delete_map_value(hugetlb_2MB_limit_map, name);
 
 		lookup_map_value(&pids_limit_map, "pids_limit_map", name, &tmp_value);
 		res->pids_limits = *(uint64_t *)tmp_value;
 		printk("pids_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
-		delete_map_value(pids_limit_map, name);
+		// delete_map_value(pids_limit_map, name);
 	}
 	mutex_unlock(&bpf_map_mutex);
 	return res;
