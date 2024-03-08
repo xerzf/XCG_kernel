@@ -6214,7 +6214,7 @@ out_unlock:
 	return ret;
 }
 
-int lookup_map_value(struct bpf_map** map, const char* map_name, const char* key, void *value) {
+int lookup_map_value(struct bpf_map** map, const char* map_name, const char* key, void **value) {
 	int map_fd ;
 	char pathname[32];
 	struct bpf_map *bpf_map;
@@ -6236,7 +6236,7 @@ int lookup_map_value(struct bpf_map** map, const char* map_name, const char* key
 			*map = bpf_map;
 		}	
 	}
-	value = (void *) (*map)->ops->map_lookup_elem(*map, key); //用目录名作为key值，我们需要避免重复的name
+	*value = (void *) (*map)->ops->map_lookup_elem(*map, key); //用目录名作为key值，我们需要避免重复的name
 	printk("here4\n");
 	return 0;
 }
@@ -6252,7 +6252,7 @@ int load_resource(const char *name) {
 	char *tmp_buf;
 	uint64_t *tmp_value;
 	printk("load resources for %s\n",name);
-	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, cgrp_mask) < 0) {
+	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, &cgrp_mask) < 0) {
 		printk("here1\n");
 		return -1;
 	}
@@ -6261,7 +6261,7 @@ int load_resource(const char *name) {
 		printk("cgrp_mask value for %s is %lld\n",name, *(int *)cgrp_mask);
 		delete_map_value(cgrp_mask_map, name);
 
-		lookup_map_value(&cpu_max_map, "cpu_max_map", name, tmp_buf);
+		lookup_map_value(&cpu_max_map, "cpu_max_map", name, &tmp_buf);
 		printk("cpu_max_map value for %s is %s\n",name, tmp_buf);
 		delete_map_value(cpu_max_map, name);
 
