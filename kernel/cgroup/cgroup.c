@@ -6257,9 +6257,9 @@ int load_resource(const char *name) {
 	if (!IS_ERR_OR_NULL(cgrp_mask)) {
 		printk("cgrp_mask value for %s is %lld\n",name, *(uint64_t *)cgrp_mask);
 		delete_map_value(cgrp_mask_map, name);
-
-		lookup_map_value(&memory_reservation_map, "memory_reservation_map", name, &tmp_value);
-		printk("memory_reservation_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
+		
+		lookup_map_value(&memory_reservation_map, "memory_reser_map", name, &tmp_value);
+		printk("memory_reser_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
 		delete_map_value(memory_reservation_map, name);
 
 		lookup_map_value(&cpu_max_map, "cpu_max_map", name, &tmp_buf);

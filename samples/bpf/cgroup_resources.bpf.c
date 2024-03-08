@@ -49,7 +49,7 @@ struct {
     __type(key, char*);             
     __type(value, u64);      
     __uint(max_entries, 4096);     
-} memory_reservation_map SEC(".maps");
+} memory_reser_map SEC(".maps");
 
 struct {
     __uint(type, BPF_MAP_TYPE_HASH); 
