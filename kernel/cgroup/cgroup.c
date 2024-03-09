@@ -6253,7 +6253,7 @@ struct subsys_resource* load_resource(const char *path) {
 	void *cgrp_mask;
 	void *tmp_buf;
 	void *tmp_value;
-	char name[32];
+	char *name = kmalloc(32, GFP_KERNEL);
 	sprintf(name, "%s", path);
 	printk("load resources for %s\n",name);
 	mutex_lock(&bpf_map_mutex);
@@ -6330,6 +6330,7 @@ struct subsys_resource* load_resource(const char *path) {
 
 ret:
 	mutex_unlock(&bpf_map_mutex);
+	kfree(name);
 	return res;
 }
 
