@@ -6274,8 +6274,8 @@ struct subsys_resource* load_resource(const char *name) {
 		// 	printk("memory_reservation_map value error\n");
 		// 	goto ret;
 		// }
-		printk("memory_reser_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
-		res->memory_reservation = *(uint64_t *)tmp_value;
+		printk("memory_reser_map value for %s is %s\n",name, (char *)tmp_value);
+		snprintf(res->memory_reservation, strlen((char *)tmp_value), (char *)tmp_value);
 		// delete_map_value(memory_reservation_map, name);
 
 	if(lookup_map_value(&cpu_max_map, "cpu_max_map", name, &tmp_buf)){
@@ -6298,16 +6298,17 @@ struct subsys_resource* load_resource(const char *name) {
 		printk("bpf for cpu_idle_map %s not exist.\n", name);
 		goto ret;
 	}
-	res->idle_present = *(uint64_t *)tmp_value;
-	printk("cpu_idle_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
+	snprintf(res->idle_present, strlen((char *)tmp_value), (char *)tmp_value);
+	printk("cpu_idle_map value for %s is %s\n",name, (char *)tmp_value);
 	// delete_map_value(cpu_idle_map, name);
+	
 
 	if(lookup_map_value(&memory_limit_map, "memory_limit_map", name, &tmp_value)){
 		printk("bpf for memory_limit_map %s not exist.\n", name);
 		goto ret;
 	}
-	res->memory_limits = *(uint64_t *)tmp_value;
-	printk("memory_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
+	snprintf(res->memory_limits, strlen((char *)tmp_value), (char *)tmp_value);
+	printk("memory_limit_map value for %s is %s\n",name, (char *)tmp_value);
 	// delete_map_value(memory_limit_map, name);
 
 		
@@ -6316,16 +6317,17 @@ struct subsys_resource* load_resource(const char *name) {
 		printk("bpf for hugetlb_2MB_limit_map %s not exist.\n", name);
 		goto ret;
 	}
-	res->hugetlb_2MB_limit = *(uint64_t *)tmp_value;
-	printk("hugetlb_2MB_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
+	// res->hugetlb_2MB_limit = *(uint64_t *)tmp_value;
+	snprintf(res->hugetlb_2MB_limit, strlen((char *)tmp_value), (char *)tmp_value);
+	printk("hugetlb_2MB_limit_map value for %s is %s\n",name, (char *)tmp_value);
 	// delete_map_value(hugetlb_2MB_limit_map, name);
 
 	if(lookup_map_value(&pids_limit_map, "pids_limit_map", name, &tmp_value)) {
 		printk("bpf for pids_limit_map %s not exist.\n", name);
 		goto ret;
 	}
-	res->pids_limits = *(uint64_t *)tmp_value;
-	printk("pids_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
+	snprintf(res->pids_limits, strlen((char *)tmp_value), (char *)tmp_value);
+	printk("pids_limit_map value for %s is %s\n",name, (char *)tmp_value);
 	// delete_map_value(pids_limit_map, name);
 
 ret:

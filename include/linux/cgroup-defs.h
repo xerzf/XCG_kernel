@@ -401,13 +401,13 @@ struct cgroup_freezer_state {
 };
 
 struct subsys_resource {
-	u64 memory_limits;
-	u64 memory_reservation;
-	u64 pids_limits;
+	char memory_limits[32];
+	char memory_reservation[32];
+	char pids_limits[32];
 	
-	u64 idle_present;
+	char idle_present[32];
 	
-	u64 hugetlb_2MB_limit;
+	char hugetlb_2MB_limit[32];
 
 	char cpu_max[32];
 	char cpu_cpusets[32];
