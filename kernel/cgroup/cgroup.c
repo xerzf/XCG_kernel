@@ -6257,6 +6257,7 @@ struct subsys_resource* load_resource(const char *name) {
 	printk("load resources for %s\n",name);
 	mutex_lock(&bpf_map_mutex);
 	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, &cgrp_mask) < 0) {
+		printk("bpf for cgroup %s not exist.\n", name);
 		goto ret;
 	}
 	struct subsys_resource* res = kzalloc(sizeof(struct subsys_resource), GFP_KERNEL);
