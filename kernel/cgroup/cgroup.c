@@ -6249,11 +6249,12 @@ int delete_map_value(struct bpf_map* map, const char* key)
 	return 0;
 }
 
-struct subsys_resource* load_resource(const char *name) {
+struct subsys_resource* load_resource(const char *path) {
 	void *cgrp_mask;
 	void *tmp_buf;
 	void *tmp_value;
-
+	char name[32];
+	sprintf(name, "%s", path);
 	printk("load resources for %s\n",name);
 	mutex_lock(&bpf_map_mutex);
 	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, &cgrp_mask) < 0) {
