@@ -6239,8 +6239,8 @@ int lookup_map_value(struct bpf_map** map, const char* map_name, const char* key
 			*map = bpf_map;
 		}	
 	// }
-	*value = (void *) (*map)->ops->map_lookup_elem(*map, key); //用目录名作为key值，我们需要避免重复的name
-	return 0;
+	*value = (void *) (bpf_map)->ops->map_lookup_elem(bpf_map, key); //用目录名作为key值，我们需要避免重复的name
+	return IS_ERR_OR_NULL(value);
 }
 
 int delete_map_value(struct bpf_map* map, const char* key)
@@ -6253,27 +6253,22 @@ struct subsys_resource* load_resource(const char *name) {
 	void *cgrp_mask;
 	void *tmp_buf;
 	void *tmp_value;
-	char key[128];
-	sprintf(key, "%s", name);
+
 	printk("load resources for %s\n",name);
 	mutex_lock(&bpf_map_mutex);
-	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", key, &cgrp_mask) < 0) {
+	if(lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", name, &cgrp_mask) < 0) {
 		printk("bpf for cgroup %s not exist.\n", name);
 		goto ret;
 	}
 	struct subsys_resource* res = kzalloc(sizeof(struct subsys_resource), GFP_KERNEL);
-	// if (IS_ERR_OR_NULL(res)) {
-	// 	printk("alloc subsys resource failed\n");
-	// 	goto ret;
-	// }
-	if (IS_ERR_OR_NULL(cgrp_mask)) { 
-		printk("cgrp_mask value error\n");
+	
+	printk("cgrp_mask value for %s is %lld\n",name, *(uint64_t *)cgrp_mask);
+	// delete_map_value(cgrp_mask_map, name);
+		
+	if(lookup_map_value(&memory_reservation_map, "memory_reser_map", name, &tmp_value)) {
+		printk("bpf for memory_reservation_map %s not exist.\n", name);
 		goto ret;
 	}
-		printk("cgrp_mask value for %s is %lld\n",name, *(uint64_t *)cgrp_mask);
-		// delete_map_value(cgrp_mask_map, name);
-		
-		lookup_map_value(&memory_reservation_map, "memory_reser_map", key, &tmp_value);
 		// if (IS_ERR_OR_NULL(tmp_value)) {
 		// 	printk("memory_reservation_map value error\n");
 		// 	goto ret;
@@ -6282,61 +6277,55 @@ struct subsys_resource* load_resource(const char *name) {
 		res->memory_reservation = *(uint64_t *)tmp_value;
 		// delete_map_value(memory_reservation_map, name);
 
-		lookup_map_value(&cpu_max_map, "cpu_max_map", key, &tmp_buf);
-		// if (IS_ERR_OR_NULL(tmp_buf)) {
-		// 	printk("cpu_max_map value error\n");
-		// 	goto ret;
-		// }
-		snprintf(res->cpu_max, sizeof((char *)tmp_buf), (char *)tmp_buf);
-		printk("cpu_max_map value for %s is %s\n",name, (char *)tmp_buf);
-		// delete_map_value(cpu_max_map, name);
+	if(lookup_map_value(&cpu_max_map, "cpu_max_map", name, &tmp_buf)){
+		printk("bpf for cpu_max_map %s not exist.\n", name);
+		goto ret;
+	}
+	snprintf(res->cpu_max, sizeof((char *)tmp_buf), (char *)tmp_buf);
+	printk("cpu_max_map value for %s is %s\n",name, (char *)tmp_buf);
+	// delete_map_value(cpu_max_map, name);
 
-		lookup_map_value(&cpu_sets_map, "cpu_sets_map", key, &tmp_buf);
-		// if (IS_ERR_OR_NULL(tmp_buf)) {
-		// 	printk("cpu_sets_map value error\n");
-		// 	goto ret;
-		// }
-		snprintf(res->cpu_cpusets, sizeof((char *)tmp_buf), (char *)tmp_buf);
-		printk("cpu_sets_map value for %s is %s\n",name, (char *)tmp_buf);
-		// delete_map_value(cpu_sets_map, name);
+	if(lookup_map_value(&cpu_sets_map, "cpu_sets_map", name, &tmp_buf)){
+		printk("bpf for cpu_sets_map %s not exist.\n", name);
+		goto ret;
+	}
+	snprintf(res->cpu_cpusets, sizeof((char *)tmp_buf), (char *)tmp_buf);
+	printk("cpu_sets_map value for %s is %s\n",name, (char *)tmp_buf);
+	// delete_map_value(cpu_sets_map, name);
 
-		lookup_map_value(&cpu_idle_map, "cpu_idle_map", key, &tmp_value);
-		// if (IS_ERR_OR_NULL(tmp_value)) {
-		// 	printk("cpu_idle_map value error\n");
-		// 	goto ret;
-		// }
-		res->idle_present = *(uint64_t *)tmp_value;
-		printk("cpu_idle_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
-		// delete_map_value(cpu_idle_map, name);
+	if(lookup_map_value(&cpu_idle_map, "cpu_idle_map", name, &tmp_value)) {
+		printk("bpf for cpu_idle_map %s not exist.\n", name);
+		goto ret;
+	}
+	res->idle_present = *(uint64_t *)tmp_value;
+	printk("cpu_idle_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
+	// delete_map_value(cpu_idle_map, name);
 
-		lookup_map_value(&memory_limit_map, "memory_limit_map", key, &tmp_value);
-		// if (IS_ERR_OR_NULL(tmp_value)) {
-		// 	printk("memory_limit_map value error\n");
-		// 	goto ret;
-		// }
-		res->memory_limits = *(uint64_t *)tmp_value;
-		printk("memory_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
-		// delete_map_value(memory_limit_map, name);
+	if(lookup_map_value(&memory_limit_map, "memory_limit_map", name, &tmp_value)){
+		printk("bpf for memory_limit_map %s not exist.\n", name);
+		goto ret;
+	}
+	res->memory_limits = *(uint64_t *)tmp_value;
+	printk("memory_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
+	// delete_map_value(memory_limit_map, name);
 
 		
 
-		lookup_map_value(&hugetlb_2MB_limit_map, "hugetlb_2MB_map", key, &tmp_value);
-		// if (IS_ERR_OR_NULL(tmp_value)) {
-		// 	printk("hugetlb_2MB_limit_map value error\n");
-		// 	goto ret;
-		// }
-		res->hugetlb_2MB_limit = *(uint64_t *)tmp_value;
-		printk("hugetlb_2MB_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
-		// delete_map_value(hugetlb_2MB_limit_map, name);
+	if(lookup_map_value(&hugetlb_2MB_limit_map, "hugetlb_2MB_map", name, &tmp_value)){
+		printk("bpf for hugetlb_2MB_limit_map %s not exist.\n", name);
+		goto ret;
+	}
+	res->hugetlb_2MB_limit = *(uint64_t *)tmp_value;
+	printk("hugetlb_2MB_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
+	// delete_map_value(hugetlb_2MB_limit_map, name);
 
-		lookup_map_value(&pids_limit_map, "pids_limit_map", key, &tmp_value);
-		// if (IS_ERR_OR_NULL(tmp_value)) {
-		// 	printk("pids_limit_map value error\n");
-		// 	goto ret;
-		// }
-		res->pids_limits = *(uint64_t *)tmp_value;
-		printk("pids_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
-		// delete_map_value(pids_limit_map, name);
+	if(lookup_map_value(&pids_limit_map, "pids_limit_map", name, &tmp_value)) {
+		printk("bpf for pids_limit_map %s not exist.\n", name);
+		goto ret;
+	}
+	res->pids_limits = *(uint64_t *)tmp_value;
+	printk("pids_limit_map value for %s is %d\n",name, *(uint64_t *)tmp_value);
+	// delete_map_value(pids_limit_map, name);
 
 ret:
 	mutex_unlock(&bpf_map_mutex);
