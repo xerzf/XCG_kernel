@@ -10388,8 +10388,13 @@ static void sched_async_create_group_work_fn(struct cgroup_subsys_state *css, st
 	alloc_uclamp_sched_group(tg, parent);
 
 	if (!IS_ERR_OR_NULL(res)) {
-		cpu_max_write_bpf(tg, res->cpu_max);
-		cpu_idle_write_s64(css, NULL, res->cpu_idle); // to do
+		if(cpu_max_write_bpf(tg, res->cpu_max) != 0) {
+			printk("cpu_max_write_bpf error.\n");
+		}
+		// cpu_idle_write_s64(css, NULL, res->cpu_idle); // to do
+		if(cpu_idle_write_s64(css, NULL, res->cpu_idle) != 0) {
+			printk("cpu_idle_write_s64 error.\n");
+		}
 	}
 }
 

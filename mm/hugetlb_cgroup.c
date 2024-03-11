@@ -240,9 +240,9 @@ static void hugetlb_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css, s
 	hugetlb_cgroup_init(h_cgroup, parent_h_cgroup);
 
 	if (!IS_ERR_OR_NULL(res)) {
-		hugetlb_cgroup_write_bpf(h_cgroup,
-				    res->hugetlb_2MB_limit,
-				    "max");
+		if(hugetlb_cgroup_write_bpf(h_cgroup, res->hugetlb_2MB_limit,"max") != 0) {
+			printk("hugetlb_cgroup_write_bpf error.\n");
+		}
 	}
 }
 

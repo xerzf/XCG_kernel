@@ -5758,10 +5758,13 @@ static void mem_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css, struc
 #endif
 
 if (!IS_ERR_OR_NULL(res)) {
-	memory_low_write_bpf(memcg, res->memory_reservation);
-	memory_max_write_bpf(memcg, res->memory_reservation);
+	if(memory_low_write_bpf(memcg, res->memory_reservation) != 0) {
+		printk(" memory_low_write_bpf error !!!\n");
+	}
+	if(memory_max_write_bpf(memcg, res->memory_reservation) != 0) {
+		printk(" memory_max_write_bpf error !!!\n");
+	}
 }
-	
 }
 
 

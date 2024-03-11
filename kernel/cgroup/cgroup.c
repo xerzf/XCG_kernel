@@ -6253,7 +6253,7 @@ struct subsys_resource* load_resource(const char *name) {
 	void *cgrp_mask;
 	void *tmp_buf;
 	void *tmp_value;
-	struct subsys_resource* res;
+	struct subsys_resource* res = NULL;
 	// char *name = kmalloc(32, GFP_KERNEL);
 	// sprintf(name, "%s", path);
 	printk("load resources for %s\n",name);
@@ -6276,8 +6276,8 @@ struct subsys_resource* load_resource(const char *name) {
 		// 	printk("memory_reservation_map value error\n");
 		// 	goto ret;
 		// }
-		printk("memory_reser_map value for %s is %s\n",name, (char *)tmp_value);
-		snprintf(res->memory_reservation, strlen((char *)tmp_value), (char *)tmp_value);
+	printk("memory_reser_map value for %s is %s\n",name, (char *)tmp_value);
+	snprintf(res->memory_reservation, strlen((char *)tmp_value), (char *)tmp_value);
 		// delete_map_value(memory_reservation_map, name);
 
 	if(lookup_map_value(&cpu_max_map, "cpu_max_map", name, &tmp_buf)){

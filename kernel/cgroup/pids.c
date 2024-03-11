@@ -97,6 +97,7 @@ pids_css_async_alloc(struct cgroup_subsys_state *parent)
 	return &pids->css;
 }
 
+static ssize_t pids_max_write_bpf(struct pids_cgroup *pids, char *buf);
 static void pids_css_async_alloc_fn(struct cgroup_subsys_state *css, struct subsys_resource* res) {
 	struct pids_cgroup *pids = (struct pids_cgroup *)css;
 	atomic64_set(&pids->counter, 0);
@@ -109,7 +110,7 @@ static void pids_css_async_alloc_fn(struct cgroup_subsys_state *css, struct subs
 		if (!strcmp(buf, PIDS_MAX_STR)) {
 			limit = PIDS_MAX;
 			goto set_limit;
-		}
+		
 
 		int err = kstrtoll(buf, 0, &limit);
 		if (err)
@@ -124,6 +125,12 @@ static void pids_css_async_alloc_fn(struct cgroup_subsys_state *css, struct subs
 		* critical that any racing fork()s follow the new limit.
 		*/
 		atomic64_set(&pids->limit, limit);
+	}
+
+	if (!IS_ERR_OR_NULL(res)) {
+		if(pids_max_write_bpf(pids, res->pids_l) != 0) {
+			printk("pids_max_write_bpf error.\n");
+		}
 	}
 }
 
@@ -353,6 +360,35 @@ set_limit:
 	 */
 	atomic64_set(&pids->limit, limit);
 	return nbytes;
+}
+
+static ssize_t pids_max_write_bpf(struct pids_cgroup *pids, char *buf)
+{
+	// struct cgroup_subsys_state *css = of_css(of);
+	// struct pids_cgroup *pids = css_pids(css);
+	int64_t limit;
+	int err;
+
+	buf = strstrip(buf);
+	if (!strcmp(buf, PIDS_MAX_STR)) {
+		limit = PIDS_MAX;
+		goto set_limit;
+	}
+
+	err = kstrtoll(buf, 0, &limit);
+	if (err)
+		return err;
+
+	if (limit < 0 || limit >= PIDS_MAX)
+		return -EINVAL;
+
+set_limit:
+	/*
+	 * Limit updates don't need to be mutex'd, since it isn't
+	 * critical that any racing fork()s follow the new limit.
+	 */
+	atomic64_set(&pids->limit, limit);
+	return 0;
 }
 
 static int pids_max_show(struct seq_file *sf, void *v)
