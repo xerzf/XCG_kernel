@@ -10370,8 +10370,10 @@ err:
 	return ERR_PTR(-ENOMEM);
 }
 
-
-
+static ssize_t cpu_max_write_bpf(struct task_group *tg,
+			     char *buf);
+static int cpu_idle_write_s64(struct cgroup_subsys_state *css,
+				struct cftype *cft, s64 idle);
 static void sched_async_create_group_work_fn(struct cgroup_subsys_state *css, struct subsys_resource* res) {
 	// struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
 	struct task_group *tg = (struct task_group *)css;
@@ -10384,6 +10386,11 @@ static void sched_async_create_group_work_fn(struct cgroup_subsys_state *css, st
 		panic("unhandle alloc_rt_sched_group fail\n");
 
 	alloc_uclamp_sched_group(tg, parent);
+
+	if (!IS_ERR_OR_NULL(res)) {
+		cpu_max_write_bpf(tg, res->cpu_max);
+		cpu_idle_write_s64(css, NULL, res->cpu_idle); // to do
+	}
 }
 
 
@@ -11202,7 +11209,7 @@ static s64 cpu_idle_read_s64(struct cgroup_subsys_state *css,
 }
 
 static int cpu_idle_write_s64(struct cgroup_subsys_state *css,
-				struct cftype *cft, s64 idle)
+				struct cftype *cft, s64 idle) // to do
 {
 	return sched_group_set_idle(css_tg(css), idle);
 }
@@ -11436,6 +11443,21 @@ static ssize_t cpu_max_write(struct kernfs_open_file *of,
 	if (!ret)
 		ret = tg_set_cfs_bandwidth(tg, period, quota, burst);
 	return ret ?: nbytes;
+}
+
+static ssize_t cpu_max_write_bpf(struct task_group *tg,
+			     char *buf)
+{
+	// struct task_group *tg = css_tg(of_css(of));
+	u64 period = tg_get_cfs_period(tg);
+	u64 burst = tg_get_cfs_burst(tg);
+	u64 quota;
+	int ret;
+
+	ret = cpu_period_quota_parse(buf, &period, &quota);
+	if (!ret)
+		ret = tg_set_cfs_bandwidth(tg, period, quota, burst);
+	return ret;
 }
 #endif
 

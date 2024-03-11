@@ -5667,6 +5667,10 @@ mem_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
 	return &memcg->css;
 }
 
+static int memory_low_write_bpf(struct mem_cgroup *memcg,
+				char *buf);
+static int memory_max_write_bpf(struct mem_cgroup *memcg,
+			char *buf);
 static void mem_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css, struct subsys_resource* res) { 
 	// struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
 	struct mem_cgroup *memcg = (struct mem_cgroup *)css;
@@ -5753,6 +5757,11 @@ static void mem_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css, struc
 		static_branch_inc(&memcg_bpf_enabled_key);
 #endif
 
+if (!IS_ERR_OR_NULL(res)) {
+	memory_low_write_bpf(memcg, res->memory_reservation);
+	memory_max_write_bpf(memcg, res->memory_reservation);
+}
+	
 }
 
 
@@ -6889,6 +6898,23 @@ static ssize_t memory_low_write(struct kernfs_open_file *of,
 	return nbytes;
 }
 
+static int memory_low_write_bpf(struct mem_cgroup *memcg,
+				char *buf)
+{
+	// struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
+	unsigned long low;
+	int err;
+
+	buf = strstrip(buf);
+	err = page_counter_memparse(buf, "max", &low);
+	if (err)
+		return err;
+
+	page_counter_set_low(&memcg->memory, low);
+
+	return 0;
+}
+
 static int memory_high_show(struct seq_file *m, void *v)
 {
 	return seq_puts_memcg_tunable(m,
@@ -6989,6 +7015,54 @@ static ssize_t memory_max_write(struct kernfs_open_file *of,
 
 	memcg_wb_domain_size_changed(memcg);
 	return nbytes;
+}
+
+
+static int memory_max_write_bpf(struct mem_cgroup *memcg,
+				char *buf)
+{
+	// struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
+	unsigned int nr_reclaims = MAX_RECLAIM_RETRIES;
+	bool drained = false;
+	unsigned long max;
+	int err;
+
+	buf = strstrip(buf);
+	err = page_counter_memparse(buf, "max", &max);
+	if (err)
+		return err;
+
+	xchg(&memcg->memory.max, max);
+
+	for (;;) {
+		unsigned long nr_pages = page_counter_read(&memcg->memory);
+
+		if (nr_pages <= max)
+			break;
+
+		if (signal_pending(current))
+			break;
+
+		if (!drained) {
+			drain_all_stock(memcg);
+			drained = true;
+			continue;
+		}
+
+		if (nr_reclaims) {
+			if (!try_to_free_mem_cgroup_pages(memcg, nr_pages - max,
+					GFP_KERNEL, MEMCG_RECLAIM_MAY_SWAP))
+				nr_reclaims--;
+			continue;
+		}
+
+		memcg_memory_event(memcg, MEMCG_OOM);
+		if (!mem_cgroup_out_of_memory(memcg, GFP_KERNEL, 0))
+			break;
+	}
+
+	memcg_wb_domain_size_changed(memcg);
+	return 0;
 }
 
 static void __memory_events_show(struct seq_file *m, atomic_long_t *events)

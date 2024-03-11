@@ -405,7 +405,7 @@ struct subsys_resource {
 	char memory_reservation[32];
 	char pids_limits[32];
 	
-	char idle_present[32];
+	s64 cpu_idle;
 	
 	char hugetlb_2MB_limit[32];
 

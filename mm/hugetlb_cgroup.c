@@ -215,7 +215,7 @@ hugetlb_cgroup_css_async_alloc(struct cgroup_subsys_state *parent_css)
 }
 
 
-
+static ssize_t hugetlb_cgroup_write_bpf(struct hugetlb_cgroup *h_cg, char *buf, const char *max);
 static void hugetlb_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css, struct subsys_resource* res) {
 	// struct cgroup_subsys_state *css = container_of(work, struct cgroup_subsys_state, async_init_work);
 	struct hugetlb_cgroup *h_cgroup = (struct hugetlb_cgroup *)css;
@@ -238,6 +238,12 @@ static void hugetlb_cgroup_css_async_alloc_fn(struct cgroup_subsys_state *css, s
 	}
 
 	hugetlb_cgroup_init(h_cgroup, parent_h_cgroup);
+
+	if (!IS_ERR_OR_NULL(res)) {
+		hugetlb_cgroup_write_bpf(h_cgroup,
+				    res->hugetlb_2MB_limit,
+				    "max");
+	}
 }
 
 static void hugetlb_cgroup_css_free(struct cgroup_subsys_state *css)
@@ -674,7 +680,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
 	case RES_RSVD_LIMIT:
 		rsvd = true;
 		fallthrough;
-	case RES_LIMIT:
+	case RES_LIMIT: 
 		mutex_lock(&hugetlb_limit_mutex);
 		ret = page_counter_set_max(
 			__hugetlb_cgroup_counter_from_cgroup(h_cg, idx, rsvd),
@@ -687,6 +693,37 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
 	}
 	return ret ?: nbytes;
 }
+
+static ssize_t hugetlb_cgroup_write_bpf(struct hugetlb_cgroup *h_cg,
+				    char *buf,
+				    const char *max)
+{
+	int ret, idx;
+	unsigned long nr_pages;
+	// struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(of_css(of));
+	bool rsvd = false;
+
+	if (hugetlb_cgroup_is_root(h_cg)) /* Can't set limit on root */
+		return -EINVAL;
+
+	buf = strstrip(buf);
+	ret = page_counter_memparse(buf, max, &nr_pages);
+	if (ret)
+		return ret;
+
+	// idx = MEMFILE_IDX(of_cft(of)->private);
+	idx = 0; // ?? 怎么判断0 对应的是2MB? 要么是0要么是1 hugepage一般有两种 2MB 2GB 分别对应0 和 1
+	nr_pages = round_down(nr_pages, pages_per_huge_page(&hstates[idx]));
+
+	mutex_lock(&hugetlb_limit_mutex);
+	ret = page_counter_set_max(
+		__hugetlb_cgroup_counter_from_cgroup(h_cg, idx, rsvd),
+		nr_pages);
+	mutex_unlock(&hugetlb_limit_mutex);
+
+	return ret;
+}
+
 
 static ssize_t hugetlb_cgroup_write_legacy(struct kernfs_open_file *of,
 					   char *buf, size_t nbytes, loff_t off)

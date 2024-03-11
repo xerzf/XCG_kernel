@@ -3546,6 +3546,130 @@ out_unlock:
 	return retval ?: nbytes;
 }
 
+static ssize_t cpuset_write_resmask_bpf(struct cpuset *cs,
+				    char *buf)
+{
+	// struct cpuset *cs = css_cs(of_css(of));
+	struct cpuset *trialcs;
+	int retval = -ENODEV;
+
+	buf = strstrip(buf);
+
+	/*
+	 * CPU or memory hotunplug may leave @cs w/o any execution
+	 * resources, in which case the hotplug code asynchronously updates
+	 * configuration and transfers all tasks to the nearest ancestor
+	 * which can execute.
+	 *
+	 * As writes to "cpus" or "mems" may restore @cs's execution
+	 * resources, wait for the previously scheduled operations before
+	 * proceeding, so that we don't end up keep removing tasks added
+	 * after execution capability is restored.
+	 *
+	 * cpuset_hotplug_work calls back into cgroup core via
+	 * cgroup_transfer_tasks() and waiting for it from a cgroupfs
+	 * operation like this one can lead to a deadlock through kernfs
+	 * active_ref protection.  Let's break the protection.  Losing the
+	 * protection is okay as we check whether @cs is online after
+	 * grabbing cpuset_mutex anyway.  This only happens on the legacy
+	 * hierarchies.
+	 */
+	css_get(&cs->css);
+	flush_work(&cpuset_hotplug_work);
+
+	cpus_read_lock();
+	mutex_lock(&cpuset_mutex);
+	if (!is_cpuset_online(cs))
+		goto out_unlock;
+
+	trialcs = alloc_trial_cpuset(cs);
+	if (!trialcs) {
+		retval = -ENOMEM;
+		goto out_unlock;
+	}
+	
+	retval = update_exclusive_cpumask(cs, trialcs, buf);
+
+	free_cpuset(trialcs);
+out_unlock:
+	mutex_unlock(&cpuset_mutex);
+	cpus_read_unlock();
+	// kernfs_unbreak_active_protection(of->kn);
+	css_put(&cs->css);
+	flush_workqueue(cpuset_migrate_mm_wq);
+	return 0;
+}
+
+
+// static int cpuset_write_resmask_bpf(struct cpuset *cs,
+// 				    char *buf, size_t nbytes, loff_t off)
+// {
+// 	struct cpuset *cs = css_cs(of_css(of));
+// 	struct cpuset *trialcs;
+// 	int retval = -ENODEV;
+
+// 	buf = strstrip(buf);
+
+// 	/*
+// 	 * CPU or memory hotunplug may leave @cs w/o any execution
+// 	 * resources, in which case the hotplug code asynchronously updates
+// 	 * configuration and transfers all tasks to the nearest ancestor
+// 	 * which can execute.
+// 	 *
+// 	 * As writes to "cpus" or "mems" may restore @cs's execution
+// 	 * resources, wait for the previously scheduled operations before
+// 	 * proceeding, so that we don't end up keep removing tasks added
+// 	 * after execution capability is restored.
+// 	 *
+// 	 * cpuset_hotplug_work calls back into cgroup core via
+// 	 * cgroup_transfer_tasks() and waiting for it from a cgroupfs
+// 	 * operation like this one can lead to a deadlock through kernfs
+// 	 * active_ref protection.  Let's break the protection.  Losing the
+// 	 * protection is okay as we check whether @cs is online after
+// 	 * grabbing cpuset_mutex anyway.  This only happens on the legacy
+// 	 * hierarchies.
+// 	 */
+// 	css_get(&cs->css);
+// 	kernfs_break_active_protection(of->kn);
+// 	flush_work(&cpuset_hotplug_work);
+
+// 	cpus_read_lock();
+// 	mutex_lock(&cpuset_mutex);
+// 	if (!is_cpuset_online(cs))
+// 		goto out_unlock;
+
+// 	trialcs = alloc_trial_cpuset(cs);
+// 	if (!trialcs) {
+// 		retval = -ENOMEM;
+// 		goto out_unlock;
+// 	}
+
+// 	switch (of_cft(of)->private) {
+// 	case FILE_CPULIST:
+// 		retval = update_cpumask(cs, trialcs, buf);
+// 		break;
+// 	case FILE_EXCLUSIVE_CPULIST:
+// 		retval = update_exclusive_cpumask(cs, trialcs, buf);
+// 		break;
+// 	case FILE_MEMLIST:
+// 		retval = update_nodemask(cs, trialcs, buf);
+// 		break;
+// 	default:
+// 		retval = -EINVAL;
+// 		break;
+// 	}
+
+// 	free_cpuset(trialcs);
+// out_unlock:
+// 	mutex_unlock(&cpuset_mutex);
+// 	cpus_read_unlock();
+// 	kernfs_unbreak_active_protection(of->kn);
+// 	css_put(&cs->css);
+// 	flush_workqueue(cpuset_migrate_mm_wq);
+// 	return retval ?: nbytes;
+// }
+
+
 /*
  * These ascii lists should be read in a single call, by using a user
  * buffer large enough to hold the entire map.  If read in smaller

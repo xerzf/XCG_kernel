@@ -6253,6 +6253,7 @@ struct subsys_resource* load_resource(const char *name) {
 	void *cgrp_mask;
 	void *tmp_buf;
 	void *tmp_value;
+	struct subsys_resource* res;
 	// char *name = kmalloc(32, GFP_KERNEL);
 	// sprintf(name, "%s", path);
 	printk("load resources for %s\n",name);
@@ -6261,10 +6262,11 @@ struct subsys_resource* load_resource(const char *name) {
 		printk("bpf for cgroup %s not exist.\n", name);
 		goto ret;
 	}
-	struct subsys_resource* res = kzalloc(sizeof(struct subsys_resource), GFP_KERNEL);
 	
 	printk("cgrp_mask value for %s is %lld\n",name, *(uint64_t *)cgrp_mask);
 	// delete_map_value(cgrp_mask_map, name);
+
+	res = kzalloc(sizeof(struct subsys_resource), GFP_KERNEL);
 		
 	if(lookup_map_value(&memory_reservation_map, "memory_reser_map", name, &tmp_value)) {
 		printk("bpf for memory_reservation_map %s not exist.\n", name);
@@ -6298,8 +6300,9 @@ struct subsys_resource* load_resource(const char *name) {
 		printk("bpf for cpu_idle_map %s not exist.\n", name);
 		goto ret;
 	}
-	snprintf(res->idle_present, strlen((char *)tmp_value), (char *)tmp_value);
-	printk("cpu_idle_map value for %s is %s\n",name, (char *)tmp_value);
+	// snprintf(res->cpu_idle, strlen((char *)tmp_value), (char *)tmp_value);
+	res->cpu_idle = *(long long *) tmp_value;
+	printk("cpu_idle_map value for %s is %lld\n",name,  *(long long *) tmp_value);
 	// delete_map_value(cpu_idle_map, name);
 	
 
@@ -6344,8 +6347,8 @@ int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
 	{
 		struct subsys_resource* res = load_resource(name);
 		if (!IS_ERR_OR_NULL(res)) {
-			printk("res->pids_limits = %d, res->hugetlb_2MB_limit_map = %d, res->memory_limits = %d, res->idle_present = %d,",res->pids_limits, res->hugetlb_2MB_limit,res->memory_limits, res->idle_present);
-			printk("res->cpu_cpusets = %s, res->cpu_max = %s, res->memory_reservation = %d\n", res->cpu_cpusets, res->cpu_max , res->memory_reservation);
+			printk("res->pids_limits = %s, res->hugetlb_2MB_limit_map = %s, res->memory_limits = %s, res->idle_present = %lld,",res->pids_limits, res->hugetlb_2MB_limit,res->memory_limits, res->cpu_idle);
+			printk("res->cpu_cpusets = %s, res->cpu_max = %s, res->memory_reservation = %s\n", res->cpu_cpusets, res->cpu_max , res->memory_reservation);
 		}
 		ret = cgroup_mkdir_async(parent_kn, name, mode, NULL);
 	}
