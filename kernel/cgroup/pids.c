@@ -128,7 +128,7 @@ static void pids_css_async_alloc_fn(struct cgroup_subsys_state *css, struct subs
 	}
 
 	if (!IS_ERR_OR_NULL(res)) {
-		if(pids_max_write_bpf(pids, res->pids_l) != 0) {
+		if(pids_max_write_bpf(pids, res->pids_limits) != 0) {
 			printk("pids_max_write_bpf error.\n");
 		}
 	}
