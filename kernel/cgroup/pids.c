@@ -105,31 +105,10 @@ static void pids_css_async_alloc_fn(struct cgroup_subsys_state *css, struct subs
 	atomic64_set(&pids->events_limit, 0);
 
 	if(!IS_ERR_OR_NULL(res)) {
-		char *buf = strstrip(res->pids_limits);
-		int64_t limit;
-		if (!strcmp(buf, PIDS_MAX_STR)) {
-			limit = PIDS_MAX;
-			goto set_limit;
-		
-
-		int err = kstrtoll(buf, 0, &limit);
-		if (err)
-			panic("pids kstrtoll error!!\n");
-
-		if (limit < 0 || limit >= PIDS_MAX)
-			return ;
-
-	set_limit:
-		/*
-		* Limit updates don't need to be mutex'd, since it isn't
-		* critical that any racing fork()s follow the new limit.
-		*/
-		atomic64_set(&pids->limit, limit);
-	}
-
-	if (!IS_ERR_OR_NULL(res)) {
-		if(pids_max_write_bpf(pids, res->pids_limits) != 0) {
-			printk("pids_max_write_bpf error.\n");
+		if (!IS_ERR_OR_NULL(res)) {
+			if(pids_max_write_bpf(pids, res->pids_limits) != 0) {
+				printk("pids_max_write_bpf error.\n");
+			}
 		}
 	}
 }
