@@ -101,7 +101,7 @@ static ssize_t pids_max_write_bpf(struct pids_cgroup *pids, char *buf);
 static void pids_css_async_alloc_fn(struct cgroup_subsys_state *css, struct subsys_resource* res) {
 	struct pids_cgroup *pids = (struct pids_cgroup *)css;
 	atomic64_set(&pids->counter, 0);
-	atomic64_set(&pids->limit, PIDS_MAX);
+	// atomic64_set(&pids->limit, PIDS_MAX);
 	atomic64_set(&pids->events_limit, 0);
 
 	if(!IS_ERR_OR_NULL(res)) {
@@ -110,6 +110,8 @@ static void pids_css_async_alloc_fn(struct cgroup_subsys_state *css, struct subs
 				printk("pids_max_write_bpf error.\n");
 			}
 		}
+	} else {
+		atomic64_set(&pids->limit, PIDS_MAX);
 	}
 }
 

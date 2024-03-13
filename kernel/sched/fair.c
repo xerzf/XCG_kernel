@@ -12883,7 +12883,7 @@ int async_alloc_fair_sched_group(struct task_group *tg, struct task_group *paren
 {
 	struct sched_entity *se;
 	struct cfs_rq *cfs_rq;
-	// int i;
+	int i;
 
 	tg->cfs_rq = kcalloc(nr_cpu_ids, sizeof(cfs_rq), GFP_KERNEL);
 	if (!tg->cfs_rq)
@@ -12896,21 +12896,21 @@ int async_alloc_fair_sched_group(struct task_group *tg, struct task_group *paren
 
 	init_cfs_bandwidth(tg_cfs_bandwidth(tg), tg_cfs_bandwidth(parent));
 
-	// for_each_possible_cpu(i) { // TODO async alloc_node
-	// 	cfs_rq = kzalloc_node(sizeof(struct cfs_rq),
-	// 			      GFP_KERNEL, cpu_to_node(i));
-	// 	if (!cfs_rq)
-	// 		goto err;
+	for_each_possible_cpu(i) { // TODO async alloc_node
+		cfs_rq = kzalloc_node(sizeof(struct cfs_rq),
+				      GFP_KERNEL, cpu_to_node(i));
+		if (!cfs_rq)
+			goto err;
 
-	// 	se = kzalloc_node(sizeof(struct sched_entity_stats),
-	// 			  GFP_KERNEL, cpu_to_node(i));
-	// 	if (!se)
-	// 		goto err_free_rq;
+		se = kzalloc_node(sizeof(struct sched_entity_stats),
+				  GFP_KERNEL, cpu_to_node(i));
+		if (!se)
+			panic("kzalloc_node failed.\n");
 
-	// 	init_cfs_rq(cfs_rq);
-	// 	init_tg_cfs_entry(tg, cfs_rq, se, i, parent->se[i]);
-	// 	init_entity_runnable_average(se);
-	// }
+		init_cfs_rq(cfs_rq);
+		init_tg_cfs_entry(tg, cfs_rq, se, i, parent->se[i]);
+		init_entity_runnable_average(se);
+	}
 
 	return 1;
 
@@ -12926,8 +12926,8 @@ void online_fair_sched_group(struct task_group *tg)
 	struct rq_flags rf;
 	struct rq *rq;
 	int i;
-	if (tg->async == 1) 
-		return;
+	// if (tg->async == 1) 
+	// 	return;
 
 	for_each_possible_cpu(i) {
 		rq = cpu_rq(i);
