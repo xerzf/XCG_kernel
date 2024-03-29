@@ -6223,7 +6223,7 @@ int lookup_map_value(struct bpf_map** map, const char* map_name, void* key, void
 	char pathname[32];
 	// struct bpf_map *bpf_map;
 	if (IS_ERR_OR_NULL(*map)) {
-		// snprintf(pathname, 32, "/sys/fs/bpf/%s", map_name);
+		snprintf(pathname, 32, "/sys/fs/bpf/%s", map_name);
 		map_fd = bpf_obj_get_ib(pathname);
 		if (map_fd<0)
 		{
@@ -6244,7 +6244,7 @@ int lookup_map_value(struct bpf_map** map, const char* map_name, void* key, void
 	return IS_ERR_OR_NULL(*value)? -3 : 0;
 }
 
-int delete_map_value(struct bpf_map* map, const char* key)
+int delete_map_value(struct bpf_map* map, void* key)
 {
 	map->ops->map_delete_elem(map, key); // 把对应的pid删除掉
 	return 0;
@@ -6279,7 +6279,7 @@ struct subsys_resource* load_resource(const char *name) {
 	}
 	
 	// printk("cgrp_mask value for %s is %lld\n",name, *(uint64_t *)cgrp_mask);
-	// delete_map_value(cgrp_mask_map, name);
+	delete_map_value(cgrp_mask_map, &hash_key);
 
 	res = kzalloc(sizeof(struct subsys_resource), GFP_KERNEL);
 		
@@ -6297,7 +6297,7 @@ struct subsys_resource* load_resource(const char *name) {
 		// 	goto ret;
 		// }
 	
-		// delete_map_value(memory_reservation_map, name);
+	delete_map_value(memory_reservation_map, &hash_key);
 
 	if(lookup_map_value(&cpu_max_map, "cpu_max_map", &hash_key, &tmp_buf) < 0){
 		printk("bpf for cpu_max_map %s not existss.\n", name);
@@ -6308,7 +6308,7 @@ struct subsys_resource* load_resource(const char *name) {
 		snprintf(res->cpu_max, strlen((char *)tmp_buf) + 1, (char *)tmp_buf);
 		// printk("cpu_max_map value for %s is %s\n",name, (char *)tmp_buf);
 	}
-	// delete_map_value(cpu_max_map, name);
+	delete_map_value(cpu_max_map, &hash_key);
 
 	if(lookup_map_value(&cpu_sets_map, "cpu_sets_map", &hash_key, &tmp_buf) < 0){
 		printk("bpf for cpu_sets_map %s not existss.\n", name);
@@ -6320,7 +6320,7 @@ struct subsys_resource* load_resource(const char *name) {
 		// printk("cpu_sets_map value for %s is %s\n",name, (char *)tmp_buf);
 	}
 	
-	// delete_map_value(cpu_sets_map, name);
+	delete_map_value(cpu_sets_map, &hash_key);
 
 	if(lookup_map_value(&cpu_idle_map, "cpu_idle_map", &hash_key, &tmp_value) < 0) {
 		printk("bpf for cpu_idle_map %s not existss.\n", name);
@@ -6332,7 +6332,7 @@ struct subsys_resource* load_resource(const char *name) {
 		// printk("cpu_idle_map value for %s is %lld\n",name,  *(long long *) tmp_value);
 	}
 	// snprintf(res->cpu_idle, strlen((char *)tmp_value), (char *)tmp_value);
-	// delete_map_value(cpu_idle_map, name);
+	delete_map_value(cpu_idle_map, &hash_key);
 	
 
 	if(lookup_map_value(&memory_limit_map, "memory_limit_map", &hash_key, &tmp_value) < 0){
@@ -6344,7 +6344,7 @@ struct subsys_resource* load_resource(const char *name) {
 		// printk("memory_limit_map value for %s is %s\n",name, (char *)tmp_value);
 	}
 	
-	// delete_map_value(memory_limit_map, name);
+	delete_map_value(memory_limit_map, &hash_key);
 		
 	if(lookup_map_value(&hugetlb_2MB_limit_map, "hugetlb_2MB_map", &hash_key, &tmp_value) < 0){
 		printk("bpf for hugetlb_2MB_limit_map %s not existss.\n", name);
@@ -6358,7 +6358,7 @@ struct subsys_resource* load_resource(const char *name) {
 	// res->hugetlb_2MB_limit = *(uint64_t *)tmp_value;
 	
 	
-	// delete_map_value(hugetlb_2MB_limit_map, name);
+	delete_map_value(hugetlb_2MB_limit_map, &hash_key);
 
 	if(lookup_map_value(&pids_limit_map, "pids_limit_map", &hash_key, &tmp_value) < 0) {
 		printk("bpf for pids_limit_map %s not existss.\n", name);
@@ -6371,7 +6371,7 @@ struct subsys_resource* load_resource(const char *name) {
 	}
 	
 	
-	// delete_map_value(pids_limit_map, name);
+	delete_map_value(pids_limit_map, &hash_key);
 
 ret:
 	// mutex_unlock(&bpf_map_mutex);
