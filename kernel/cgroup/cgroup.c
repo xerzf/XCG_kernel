@@ -6275,7 +6275,8 @@ struct subsys_resource* load_resource(const char *name) {
 	// mutex_lock(&bpf_map_mutex);
 	if (lookup_map_value(&cgrp_mask_map, "cgrp_mask_map", &hash_key, &cgrp_mask) < 0) {
 		printk("bpf for cgroup %s not existss.\n", name);
-		goto ret;
+		// goto ret;
+		return NULL;
 	}
 	
 	// printk("cgrp_mask value for %s is %lld\n",name, *(uint64_t *)cgrp_mask);
