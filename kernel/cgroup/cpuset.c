@@ -3597,7 +3597,7 @@ out_unlock:
 	// kernfs_unbreak_active_protection(of->kn);
 	css_put(&cs->css);
 	flush_workqueue(cpuset_migrate_mm_wq);
-	return 0;
+	return retval ?: 1;
 }
 
 
@@ -4103,6 +4103,11 @@ cpuset_css_async_alloc_work_fn(struct cgroup_subsys_state *css, struct subsys_re
 		__set_bit(CS_MEMORY_MIGRATE, &cs->flags);
 
 	// return &cs->css;
+	if (!IS_ERR_OR_NULL(res)) {
+			if (cpuset_write_resmask_bpf(cs,res->cpu_cpusets) == 0) {
+				printk("cpuset_write_resmask_bpf error.\n");
+			}
+	}
 }
 
 

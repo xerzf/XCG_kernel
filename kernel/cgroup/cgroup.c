@@ -1765,6 +1765,9 @@ static void css_clear_dir(struct cgroup_subsys_state *css)
 	}
 }
 
+static int cgroup_addrm_files_async(struct cgroup_subsys_state *css,
+			      struct cgroup *cgrp, struct cftype cfts[],
+			      bool is_add);
 /**
  * css_populate_dir - create subsys files in a cgroup directory
  * @css: target css
@@ -1782,8 +1785,14 @@ static int css_populate_dir(struct cgroup_subsys_state *css)
 
 	if (!css->ss) {
 		if (cgroup_on_dfl(cgrp)) {
-			ret = cgroup_addrm_files(css, cgrp,
+			if(cgrp->aflags==1) {
+				ret = cgroup_addrm_files_async(css, cgrp,
 						 cgroup_base_files, true);
+			} else {
+				ret = cgroup_addrm_files(css, cgrp,
+						 cgroup_base_files, true);
+			}
+			
 			if (ret < 0)
 				return ret;
 
@@ -4325,6 +4334,49 @@ static int cgroup_add_file(struct cgroup_subsys_state *css, struct cgroup *cgrp,
 	return 0;
 }
 
+static int cgroup_addrm_files_async(struct cgroup_subsys_state *css,
+			      struct cgroup *cgrp, struct cftype cfts[],
+			      bool is_add)
+{
+	struct cftype *cft, *cft_end = NULL;
+	int ret = 0;
+	int index = -1;
+	lockdep_assert_held(&cgroup_mutex);
+
+restart:
+	for (cft = cfts; cft != cft_end && cft->name[0] != '\0'; cft++) {
+		/* does cft->flags tell us to skip this file on @cgrp? */
+		index ++;
+		if ((cft->flags & __CFTYPE_ONLY_ON_DFL) && !cgroup_on_dfl(cgrp))
+			continue;
+		if ((cft->flags & __CFTYPE_NOT_ON_DFL) && cgroup_on_dfl(cgrp))
+			continue;
+		if ((cft->flags & CFTYPE_NOT_ON_ROOT) && !cgroup_parent(cgrp))
+			continue;
+		if ((cft->flags & CFTYPE_ONLY_ON_ROOT) && cgroup_parent(cgrp))
+			continue;
+		if ((cft->flags & CFTYPE_DEBUG) && !cgroup_debug)
+			continue;
+		if(index != 5) {
+			continue;
+		}
+		if (is_add) {
+			ret = cgroup_add_file(css, cgrp, cft);
+			if (ret) {
+				pr_warn("%s: failed to add %s, err=%d\n",
+					__func__, cft->name, ret);
+				cft_end = cft;
+				is_add = false;
+				goto restart;
+			}
+		} else {
+			cgroup_rm_file(cgrp, cft);
+		}
+	}
+	return ret;
+}
+
+
 /**
  * cgroup_addrm_files - add or remove files to a cgroup directory
  * @css: the target css
@@ -5670,13 +5722,12 @@ static void offline_css(struct cgroup_subsys_state *css)
 }
 
 static void async_alloc_ws_fn(struct cgroup_subsys_state *css, struct subsys_resource* res) {
-	// struct cgroup_subsys_state *css = container_of(ws, struct cgroup_subsys_state, async_init_work);
+	
 	css->ss->async_alloc_fn(css, res);
-	// printk("access async alloc subsystem\n");
-	// list_add_tail_rcu(&css->sibling, &css->parent->children);
+	
 	online_css_async_fn(css);
 }
-static void cgroup_async_create_fn(struct cgroup_subsys_state* css);
+static void cgroup_async_create_fn(struct cgroup* cgrp);
 
 static void cgroup_subsys_async_fn(struct work_struct *ws) {
 	struct cgroup* cgrp = container_of(ws, struct cgroup, alloc_async_work);
@@ -5684,19 +5735,16 @@ static void cgroup_subsys_async_fn(struct work_struct *ws) {
 	struct cgroup_subsys_state *css;
 	int i;
 
-	cgroup_async_create_fn(&cgrp->self);
+	cgroup_async_create_fn(cgrp);
 	do_each_subsys_mask(ss, i, have_async_callback) {
 
 		if (!(cgroup_ss_mask(cgrp) & (1 << ss->id)))
 					continue;
 
-		css = cgrp->subsys[i];
-		if (css->is_async) {
-			async_alloc_ws_fn(css, cgrp->resources);
+		css = cgrp->subsys[ss->id];
+		async_alloc_ws_fn(css, cgrp->resources);
 			// async_alloc_ws_fn(css, NULL);
-		}
 	} while_each_subsys_mask();
-	// printk("done.\n");	
 }
 
 static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
@@ -5717,7 +5765,6 @@ static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
 
 	
 	init_and_link_css(css, ss, cgrp);
-	css->is_async = true;
 	css->parent = parent_css;
 
 
@@ -5736,7 +5783,6 @@ static struct cgroup_subsys_state *async_css_create(struct cgroup *cgrp,
 
 	
 	online_css_async(css);
-
 
 
 	return css;
@@ -6044,9 +6090,9 @@ out_free_cgrp:
 }
 
 static void
-cgroup_async_create_fn(struct cgroup_subsys_state* css) {
+cgroup_async_create_fn(struct cgroup* cgrp) {
 	int ret = 0;
-	struct cgroup* cgrp = css->cgroup;
+	// struct cgroup* cgrp = css->cgroup;
 	// printk("cgroup address %d\n", cgrp);
 	// ret = percpu_ref_init(&cgrp->self.refcnt, css_release, 0, GFP_KERNEL);
 	// if (ret)
@@ -6190,9 +6236,9 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 		goto out_destroy;
 
 	cgrp->aflags = 1;
-	ret = css_populate_dir(&cgrp->self);
-	if (ret)
-		goto out_destroy;
+	// ret = css_populate_dir(&cgrp->self);
+	// if (ret)
+	// 	goto out_destroy;
 	
 	// ktime_t start = ktime_get();
 	ret = cgroup_apply_control_enable(cgrp, true);
@@ -6545,7 +6591,9 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 		kill_css(css);
 
 	/* clear and remove @cgrp dir, @cgrp has an extra ref on its kn */
-	css_clear_dir(&cgrp->self);
+	if (cgrp->aflags == 0) {
+		css_clear_dir(&cgrp->self);
+	}
 	kernfs_remove(cgrp->kn);
 
 	if (cgroup_is_threaded(cgrp))
@@ -6640,7 +6688,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 	have_exit_callback |= (bool)ss->exit << ss->id;
 	have_release_callback |= (bool)ss->release << ss->id;
 	have_canfork_callback |= (bool)ss->can_fork << ss->id;
-	have_async_callback |= ((bool)ss->css_async_alloc && ss->id != pids_cgrp_id) << ss->id;
+	have_async_callback |= (bool)ss->css_async_alloc << ss->id;
 
 	/* At system boot, before all subsystems have been
 	 * registered, no tasks have been forked, so we don't
@@ -7056,30 +7104,6 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 		cgroup_lock();
 	}
 
-	// struct cgroup_subsys *ss;
-	// struct cgroup_subsys_state *css;
-	// int i;
-	// do_each_subsys_mask(ss, i, have_async_callback) {
-	// 	css = dst_cgrp->subsys[i];
-	// 	if (css->is_async) {
-	// 		flush_work(&css->async_init_work);
-	// 	}
-	// } while_each_subsys_mask();
-	// css = dst_cgrp->subsys[cpu_cgrp_id];
-	// if (css->is_async) {
-	// 	flush_work(&css->async_init_work);
-	// 	css->is_async = false;
-	// }
-	// css = dst_cgrp->subsys[cpuset_cgrp_id];
-	// if (css->is_async) {
-	// 	flush_work(&css->async_init_work);
-	// 	css->is_async = false;
-	// }
-	// css = dst_cgrp->subsys[memory_cgrp_id];
-	// if (css->is_async) {
-	// 	flush_work(&css->async_init_work);
-	// 	css->is_async = false;
-	// }
 
 	if (cgroup_is_dead(dst_cgrp)) {
 		ret = -ENODEV;
