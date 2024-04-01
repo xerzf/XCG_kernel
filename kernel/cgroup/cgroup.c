@@ -1732,6 +1732,12 @@ static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 	kernfs_remove_by_name(cgrp->kn, cgroup_file_name(cgrp, cft, name));
 }
 
+
+static int cgroup_addrm_files_async(struct cgroup_subsys_state *css,
+			      struct cgroup *cgrp, struct cftype cfts[],
+			      bool is_add);
+
+
 /**
  * css_clear_dir - remove subsys files in a cgroup directory
  * @css: target css
@@ -1748,11 +1754,17 @@ static void css_clear_dir(struct cgroup_subsys_state *css)
 
 	if (!css->ss) {
 		if (cgroup_on_dfl(cgrp)) {
-			cgroup_addrm_files(css, cgrp,
+			if (cgrp->aflags == 1) {
+				cgroup_addrm_files_async(css, cgrp,
 					   cgroup_base_files, false);
-			if (cgroup_psi_enabled())
+			} else {
+				cgroup_addrm_files(css, cgrp,
+					   cgroup_base_files, false);
+
+				if (cgroup_psi_enabled())
 				cgroup_addrm_files(css, cgrp,
 						   cgroup_psi_files, false);
+			}
 		} else {
 			cgroup_addrm_files(css, cgrp,
 					   cgroup1_base_files, false);
@@ -1765,9 +1777,6 @@ static void css_clear_dir(struct cgroup_subsys_state *css)
 	}
 }
 
-static int cgroup_addrm_files_async(struct cgroup_subsys_state *css,
-			      struct cgroup *cgrp, struct cftype cfts[],
-			      bool is_add);
 /**
  * css_populate_dir - create subsys files in a cgroup directory
  * @css: target css
@@ -1788,20 +1797,22 @@ static int css_populate_dir(struct cgroup_subsys_state *css)
 			if(cgrp->aflags==1) {
 				ret = cgroup_addrm_files_async(css, cgrp,
 						 cgroup_base_files, true);
+				if (ret < 0)
+					return ret;
 			} else {
 				ret = cgroup_addrm_files(css, cgrp,
 						 cgroup_base_files, true);
-			}
-			
-			if (ret < 0)
-				return ret;
-
-			if (cgroup_psi_enabled()) {
-				ret = cgroup_addrm_files(css, cgrp,
-							 cgroup_psi_files, true);
 				if (ret < 0)
 					return ret;
+				
+				if (cgroup_psi_enabled()) {
+					ret = cgroup_addrm_files(css, cgrp,
+							 cgroup_psi_files, true);
+					if (ret < 0)
+						return ret;
 			}
+			}
+
 		} else {
 			ret = cgroup_addrm_files(css, cgrp,
 						 cgroup1_base_files, true);
@@ -4340,13 +4351,11 @@ static int cgroup_addrm_files_async(struct cgroup_subsys_state *css,
 {
 	struct cftype *cft, *cft_end = NULL;
 	int ret = 0;
-	int index = -1;
 	lockdep_assert_held(&cgroup_mutex);
 
 restart:
 	for (cft = cfts; cft != cft_end && cft->name[0] != '\0'; cft++) {
 		/* does cft->flags tell us to skip this file on @cgrp? */
-		index ++;
 		if ((cft->flags & __CFTYPE_ONLY_ON_DFL) && !cgroup_on_dfl(cgrp))
 			continue;
 		if ((cft->flags & __CFTYPE_NOT_ON_DFL) && cgroup_on_dfl(cgrp))
@@ -4357,7 +4366,7 @@ restart:
 			continue;
 		if ((cft->flags & CFTYPE_DEBUG) && !cgroup_debug)
 			continue;
-		if(index != 5) {
+		if(strcmp(cft->name, "cgroup.procs") != 0 && strcmp(cft->name, "cgroup.events") != 0 ) {
 			continue;
 		}
 		if (is_add) {
@@ -6236,9 +6245,9 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 		goto out_destroy;
 
 	cgrp->aflags = 1;
-	// ret = css_populate_dir(&cgrp->self);
-	// if (ret)
-	// 	goto out_destroy;
+	ret = css_populate_dir(&cgrp->self);
+	if (ret)
+		goto out_destroy;
 	
 	// ktime_t start = ktime_get();
 	ret = cgroup_apply_control_enable(cgrp, true);
@@ -6591,9 +6600,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 		kill_css(css);
 
 	/* clear and remove @cgrp dir, @cgrp has an extra ref on its kn */
-	if (cgrp->aflags == 0) {
-		css_clear_dir(&cgrp->self);
-	}
+	css_clear_dir(&cgrp->self);
 	kernfs_remove(cgrp->kn);
 
 	if (cgroup_is_threaded(cgrp))
