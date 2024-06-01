@@ -498,7 +498,7 @@ static u16 cgroup_ss_mask(struct cgroup *cgrp)
  * @ss: the subsystem of interest (%NULL returns @cgrp->self)
  *
  * Return @cgrp's css (cgroup_subsys_state) associated with @ss.  This
- * function must be called either under cgroup_mutex or rcu_read_lock() and
+ * function must be called either under cgroup_mutex or rcu_read_lock() and  ** 使用者需要采取一些措施来“固定”这个css对象以防止他被其他代码释放掉
  * the caller is responsible for pinning the returned css if it wants to
  * keep accessing it outside the said locks.  This function may return
  * %NULL if @cgrp doesn't have @subsys_id enabled.
@@ -3285,7 +3285,7 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp, bool async)
 
 				if (have_async_callback & (1 << ss->id)) { // 如果是异步来完成的
 					if (!css) {
-						css = async_css_create(dsct, ss);
+						css = css_create(dsct, ss);
 						if (IS_ERR(css))
 							return PTR_ERR(css);
 					}
@@ -5601,10 +5601,10 @@ static void css_release_work_fn(struct work_struct *work)
 		/*
 		 * There are two control paths which try to determine
 		 * cgroup from dentry without going through kernfs -
-		 * cgroupstats_build() and css_tryget_online_from_dir().
+		 * cgroupstats_build() and css_tryget_online_from_dir().  ** 提高性能,避免在需要快速确定 cgroup 对象时还需要经过 kernfs 层。但同时也需要特殊的同步机制来确保安全性,防止数据竞争。
 		 * Those are supported by RCU protecting clearing of
 		 * cgrp->kn->priv backpointer.
-		 */
+		 */ 
 		if (cgrp->kn)
 			RCU_INIT_POINTER(*(void __rcu __force **)&cgrp->kn->priv,
 					 NULL);
@@ -6209,17 +6209,7 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 	if (strchr(name, '\n'))
 		return -EINVAL;
 
-	// parent = cgroup_kn_lock_live(parent_kn, false);
-	// if (!parent)
-	// 	return -ENODEV;
-
-	parent = cgroup_kn_try_get(parent_kn);
-	if (!parent)
-		return -ENODEV;
-	cgrp = kzalloc(struct_size(cgrp, ancestors, (parent->level + 2)), GFP_KERNEL);
-	cgrp->resources = res;
-	
-	parent = cgroup_kn_get_done(parent_kn, parent, false);
+	parent = cgroup_kn_lock_live(parent_kn, false);
 	if (!parent)
 		return -ENODEV;
 
@@ -6228,7 +6218,7 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 		goto out_unlock;
 	}
 
-	cgrp = cgroup_async_create(parent, cgrp, name, mode);
+	cgrp = cgroup_create(parent, name, mode);
 	if (IS_ERR(cgrp)) {
 		ret = PTR_ERR(cgrp);
 		goto out_unlock;
