@@ -6233,7 +6233,7 @@ static int cgroup_mkdir_async(struct kernfs_node *parent_kn, const char *name, u
 	ret = cgroup_kn_set_ugid(cgrp->kn);
 	if (ret) 
 		goto out_destroy;
-
+	
 	cgrp->aflags = 1;
 	ret = css_populate_dir(&cgrp->self);
 	if (ret)
@@ -7095,11 +7095,11 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 		goto err;
 	}
 
-	if (dst_cgrp->aflags) {
-		cgroup_unlock();
-		flush_work(&dst_cgrp->alloc_async_work);
-		cgroup_lock();
-	}
+	// if (dst_cgrp->aflags) {
+	// 	cgroup_unlock();
+	// 	flush_work(&dst_cgrp->alloc_async_work);
+	// 	cgroup_lock();
+	// }
 
 
 	if (cgroup_is_dead(dst_cgrp)) {
